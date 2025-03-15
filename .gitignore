@@ -30,3 +30,32 @@
 *.exe
 *.out
 *.app
+
+# Downloaded tarballs
+*.tar.gz
+v*.tar.gz
+
+# Extracted whisper.cpp directories
+whisper.cpp-*
+
+# SDL3 directories and symlinks
+SDL3-*
+SDL3-mingw
+
+# Common build artifacts
+*.o
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+build/
+bin/
+obj/
+
+# Editor and OS specific files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
