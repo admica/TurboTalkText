@@ -12,13 +12,17 @@ set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
 add_executable(TurboTalkText src/main.cpp)
 set_target_properties(TurboTalkText PROPERTIES SUFFIX ".exe")
 
+# SDL3 manual configuration
 set(SDL3_DIR ${CMAKE_SOURCE_DIR}/SDL3-mingw)
-find_package(SDL3 REQUIRED)
-include_directories(${SDL3_INCLUDE_DIRS})
-target_link_libraries(TurboTalkText ${SDL3_LIBRARIES})
+include_directories(${SDL3_DIR}/x86_64-w64-mingw32/include/SDL3)
+target_link_libraries(TurboTalkText ${SDL3_DIR}/x86_64-w64-mingw32/lib/libSDL3.dll.a)
 
+# Whisper.cpp setup
 add_library(whisper STATIC whisper.cpp/src/whisper.cpp)
-target_include_directories(whisper PUBLIC whisper.cpp/include)
+target_include_directories(whisper PUBLIC whisper.cpp/include whisper.cpp/src)
 target_link_libraries(TurboTalkText whisper)
+
+# Add src/ to main executable includes for consistency
+include_directories(whisper.cpp/src)
 
 target_link_libraries(TurboTalkText user32)
