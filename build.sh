@@ -22,7 +22,11 @@ SDL3_VER=3.2.8
 WHISPER_VER=1.7.4
 PROJECT_DIR="$(pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
-OUTPUT_DIR="/mnt/c/Users/$(ls /mnt/c/Users/|awk '{print $1}'|head -n1)/Desktop"
+if [[ -n "$1" ]]; then
+    OUTPUT_DIR=$1 # Allow user to specify output path, otherwise use the first user
+else
+    OUTPUT_DIR="/mnt/c/Users/$(ls /mnt/c/Users/|awk '{print $1}'|head -n1)/Desktop"
+fi
 SDL3_DIR="$PROJECT_DIR/SDL3-mingw"
 MODEL_FILE="$PROJECT_DIR/whisper.cpp/ggml-base.en.bin"
 EXE_FILE="$BUILD_DIR/TurboTalkText.exe"
@@ -60,6 +64,24 @@ else
     [ $? -ne 0 ] && print_error "Failed to download Whisper model"
 fi
 
+# Create symbolic links for Whisper headers if missing
+WHISPER_INCLUDE_DIR="$PROJECT_DIR/whisper.cpp/include"
+if [ -f "$WHISPER_INCLUDE_DIR/ggml.h" ]; then
+    print_detail "ggml.h already in $WHISPER_INCLUDE_DIR"
+else
+    print_header "Creating symbolic link for ggml.h"
+    ln -s "$PROJECT_DIR/whisper.cpp/ggml/include/ggml.h" "$WHISPER_INCLUDE_DIR/ggml.h"
+    [ $? -ne 0 ] && print_error "Failed to create ggml.h symlink"
+fi
+
+if [ -f "$WHISPER_INCLUDE_DIR/whisper.h" ]; then
+    print_detail "whisper.h already in $WHISPER_INCLUDE_DIR"
+else
+    print_header "Creating symbolic link for whisper.h"
+    ln -s "$PROJECT_DIR/whisper.cpp/include/whisper.h" "$WHISPER_INCLUDE_DIR/whisper.h"
+    [ $? -ne 0 ] && print_error "Failed to create whisper.h symlink"
+fi
+
 # Check and download SDL3
 if [ -d "SDL3-$SDL3_VER" ]; then
     print_detail "SDL3-$SDL3_VER directory already exists, skipping download and extraction"
@@ -77,7 +99,7 @@ else
     [ $? -ne 0 ] && print_error "Failed to unpack SDL3 tarball"
 fi
 
-# Check and create symbolic link
+# Check and create symbolic link for SDL3
 if [ -L "SDL3-mingw" ] || [ -d "SDL3-mingw" ]; then
     print_detail "SDL3-mingw link already exists"
 else
