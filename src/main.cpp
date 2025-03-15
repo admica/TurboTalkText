@@ -1,9 +1,41 @@
-#include "whisper.h"
-#include <SDL3/SDL.h>
-#include <windows.h>
+#include <iostream>
+#include <string>
 #include <vector>
+#include <cmath>
+#include <cstdio>
+#include <memory>
+#include <algorithm>
 #include <chrono>
 #include <thread>
+
+#ifdef WHISPER_DISABLED
+// Dummy implementations when WHISPER_DISABLED is defined
+struct whisper_context_params { bool use_gpu; };
+struct whisper_context { bool dummy; };
+struct whisper_full_params { 
+    bool dummy; 
+    bool print_realtime;
+};
+enum whisper_sampling_strategy { WHISPER_SAMPLING_GREEDY };
+
+inline whisper_context_params whisper_context_default_params() { return whisper_context_params{false}; }
+inline whisper_context* whisper_init_from_file_with_params(const char* path, const whisper_context_params* params) { return new whisper_context(); }
+inline whisper_context* whisper_init_from_file(const char* path) { return new whisper_context(); }
+inline void whisper_free(whisper_context* ctx) { delete ctx; }
+inline whisper_full_params whisper_full_default_params(whisper_sampling_strategy strategy) { 
+    whisper_full_params params;
+    params.print_realtime = false;
+    return params;
+}
+inline int whisper_full(whisper_context* ctx, whisper_full_params params, const float* samples, int n_samples) { return 0; }
+inline int whisper_full_n_segments(whisper_context* ctx) { return 1; }
+inline const char* whisper_full_get_segment_text(whisper_context* ctx, int i) { return "Dummy transcription"; }
+#else
+#include "whisper.h"
+#endif
+
+#include <SDL3/SDL.h>
+#include <windows.h>
 
 struct TurboTalkText {
     whisper_context *ctx;
@@ -17,7 +49,7 @@ struct TurboTalkText {
     void init() {
         // Initialize Whisper with the recommended new API
         whisper_context_params cparams = whisper_context_default_params();
-        ctx = whisper_init_from_file_with_params("ggml-base.en.bin", cparams);
+        ctx = whisper_init_from_file_with_params("ggml-base.en.bin", &cparams);
         if (!ctx) {
             // Fallback to the deprecated function if needed
             ctx = whisper_init_from_file("ggml-base.en.bin");

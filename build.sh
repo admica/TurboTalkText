@@ -32,10 +32,10 @@ else
     if [ -z "$FIRST_USER" ]; then
         print_error "No users found in /mnt/c/Users/!"
     fi
-    OUTPUT_DIR="/mnt/c/Users/$FIRST_USER/Desktop"
+    OUTPUT_DIR="/mnt/c/Users/$FIRST_USER/Downloads"
 fi
 SDL3_DIR="$PROJECT_DIR/SDL3-mingw"
-MODEL_FILE="$PROJECT_DIR/whisper.cpp/ggml-base.en.bin"
+MODEL_FILE="$PROJECT_DIR/whisper.cpp/models/ggml-base.en.bin"
 EXE_FILE="$BUILD_DIR/TurboTalkText.exe"
 DLL_FILE="$SDL3_DIR/x86_64-w64-mingw32/bin/SDL3.dll"
 
@@ -178,8 +178,29 @@ make -j$(nproc)
 
 # Copy output files to Windows Desktop
 print_header "Copying output files"
+# Get MinGW runtime DLLs
+MINGW_GCC_DIR="/usr/lib/gcc/x86_64-w64-mingw32/13-posix"
+MINGW_LIB_DIR="/usr/x86_64-w64-mingw32/lib"
+REQUIRED_DLLS=(
+    "$MINGW_GCC_DIR/libgcc_s_seh-1.dll"
+    "$MINGW_GCC_DIR/libstdc++-6.dll"
+    "$MINGW_LIB_DIR/libwinpthread-1.dll"
+)
+
 if [ -f "$EXE_FILE" ] && [ -f "$DLL_FILE" ] && [ -f "$MODEL_FILE" ]; then
-    cp "$EXE_FILE" "$DLL_FILE" "$MODEL_FILE" "$OUTPUT_DIR"
+    sudo cp "$EXE_FILE" "$DLL_FILE" "$MODEL_FILE" "$OUTPUT_DIR"
+    
+    # Copy MinGW runtime DLLs
+    print_detail "Copying MinGW runtime DLLs"
+    for dll in "${REQUIRED_DLLS[@]}"; do
+        if [ -f "$dll" ]; then
+            sudo cp "$dll" "$OUTPUT_DIR"
+            print_detail "Copied $(basename "$dll") to $OUTPUT_DIR"
+        else
+            print_debug "Warning: $dll not found"
+        fi
+    done
+    
     print_detail "Files copied to $OUTPUT_DIR:"
     ls -lh "$OUTPUT_DIR/TurboTalkText.exe" "$OUTPUT_DIR/SDL3.dll" "$OUTPUT_DIR/ggml-base.en.bin"
 else
