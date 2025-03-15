@@ -23,9 +23,16 @@ WHISPER_VER=1.7.4
 PROJECT_DIR="$(pwd)"
 BUILD_DIR="$PROJECT_DIR/build"
 if [[ -n "$1" ]]; then
-    OUTPUT_DIR=$1 # Allow user to specify output path, otherwise use the first user
+    OUTPUT_DIR="$1" # Allow user to specify output path
+    if [ ! -d "$OUTPUT_DIR" ]; then
+        print_error "Output directory $OUTPUT_DIR does not exist!"
+    fi
 else
-    OUTPUT_DIR="/mnt/c/Users/$(ls /mnt/c/Users/|awk '{print $1}'|head -n1)/Desktop"
+    FIRST_USER=$(ls /mnt/c/Users/ | awk '{print $1}' | head -n1)
+    if [ -z "$FIRST_USER" ]; then
+        print_error "No users found in /mnt/c/Users/!"
+    fi
+    OUTPUT_DIR="/mnt/c/Users/$FIRST_USER/Desktop"
 fi
 SDL3_DIR="$PROJECT_DIR/SDL3-mingw"
 MODEL_FILE="$PROJECT_DIR/whisper.cpp/ggml-base.en.bin"
@@ -36,6 +43,17 @@ print_debug "Starting TurboTalkText build process"
 print_debug "SDL3 version: $SDL3_VER"
 print_debug "Whisper.cpp version: $WHISPER_VER"
 print_debug "Output directory: $OUTPUT_DIR"
+
+# Check dependencies
+print_header "Checking dependencies"
+for cmd in wget cmake make x86_64-w64-mingw32-g++; do
+    if ! command -v "$cmd" &> /dev/null; then
+        print_detail "Installing missing dependencies..."
+        sudo apt update
+        sudo apt install -y wget cmake mingw-w64
+        break
+    fi
+done
 
 # Check and download whisper.cpp
 if [ -d "whisper.cpp" ]; then
@@ -72,6 +90,30 @@ else
     print_header "Creating symbolic link for ggml.h"
     ln -s "$PROJECT_DIR/whisper.cpp/ggml/include/ggml.h" "$WHISPER_INCLUDE_DIR/ggml.h"
     [ $? -ne 0 ] && print_error "Failed to create ggml.h symlink"
+fi
+
+if [ -f "$WHISPER_INCLUDE_DIR/ggml-cpu.h" ]; then
+    print_detail "ggml-cpu.h already in $WHISPER_INCLUDE_DIR"
+else
+    print_header "Creating symbolic link for ggml-cpu.h"
+    ln -s "$PROJECT_DIR/whisper.cpp/ggml/include/ggml-cpu.h" "$WHISPER_INCLUDE_DIR/ggml-cpu.h"
+    [ $? -ne 0 ] && print_error "Failed to create ggml-cpu.h symlink"
+fi
+
+if [ -f "$WHISPER_INCLUDE_DIR/ggml-backend.h" ]; then
+    print_detail "ggml-backend.h already in $WHISPER_INCLUDE_DIR"
+else
+    print_header "Creating symbolic link for ggml-backend.h"
+    ln -s "$PROJECT_DIR/whisper.cpp/ggml/include/ggml-backend.h" "$WHISPER_INCLUDE_DIR/ggml-backend.h"
+    [ $? -ne 0 ] && print_error "Failed to create ggml-backend.h symlink"
+fi
+
+if [ -f "$WHISPER_INCLUDE_DIR/ggml-alloc.h" ]; then
+    print_detail "ggml-alloc.h already in $WHISPER_INCLUDE_DIR"
+else
+    print_header "Creating symbolic link for ggml-alloc.h"
+    ln -s "$PROJECT_DIR/whisper.cpp/ggml/include/ggml-alloc.h" "$WHISPER_INCLUDE_DIR/ggml-alloc.h"
+    [ $? -ne 0 ] && print_error "Failed to create ggml-alloc.h symlink"
 fi
 
 if [ -f "$WHISPER_INCLUDE_DIR/whisper.h" ]; then
@@ -122,12 +164,16 @@ cd "$BUILD_DIR"
 
 # Run CMake to generate build files
 print_header "Configuring with CMake"
-cmake .. -G "Unix Makefiles" -DSDL3_DIR="$SDL3_DIR"
+cmake .. -G "Unix Makefiles" \
+    -DSDL3_DIR="$SDL3_DIR" \
+    -DCMAKE_CXX_FLAGS="-I$SDL3_DIR/x86_64-w64-mingw32/include -I/usr/x86_64-w64-mingw32/include" \
+    -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+    -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++
 [ $? -ne 0 ] && print_error "CMake configuration failed!"
 
 # Compile the project
 print_header "Compiling TurboTalkText"
-make
+make -j$(nproc)
 [ $? -ne 0 ] && print_error "Compilation failed!"
 
 # Copy output files to Windows Desktop
