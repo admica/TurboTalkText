@@ -1,0 +1,20 @@
+{
+    "audio": {
+        "device": "",
+        "sample_rate": 16000,
+        "silence_threshold": 0.01,
+        "silence_duration_ms": 2000
+    },
+    "whisper": {
+        "model_path": "ggml-base.en.bin",
+        "language": "en",
+        "translate": false,
+        "beam_size": 5,
+        "threads": 4
+    },
+    "output": {
+        "type": "keyboard",
+        "add_punctuation": true,
+        "capitalize_sentences": true
+    }
+} 

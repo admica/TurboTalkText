@@ -36,7 +36,7 @@
 v*.tar.gz
 
 # Extracted whisper.cpp directories
-whisper.cpp-*
+whisper.cpp
 
 # SDL3 directories and symlinks
 SDL3-*

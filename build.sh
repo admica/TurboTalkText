@@ -73,6 +73,17 @@ else
     mv whisper.cpp-$WHISPER_VER whisper.cpp
 fi
 
+# Download JSON library if needed
+JSON_INCLUDE_DIR="$PROJECT_DIR/include"
+if [ -f "$JSON_INCLUDE_DIR/nlohmann/json.hpp" ]; then
+    print_detail "JSON library already exists"
+else
+    print_header "Downloading JSON library"
+    mkdir -p "$JSON_INCLUDE_DIR/nlohmann"
+    wget https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp -O "$JSON_INCLUDE_DIR/nlohmann/json.hpp"
+    [ $? -ne 0 ] && print_error "Failed to download JSON library"
+fi
+
 # Download Whisper model
 if [ -f "$MODEL_FILE" ]; then
     print_detail "Whisper model ggml-base.en.bin already exists"
