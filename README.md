@@ -22,22 +22,14 @@ A real-time speech-to-text application that transcribes your voice and types it 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/TurboTalkText.git
+git clone https://github.com/admica/TurboTalkText.git
 cd TurboTalkText
 ```
 
-2. Download the Whisper model:
-```bash
-# Download the base English model
-wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
-```
-
 3. Build the application:
+The bash script handles all downloading of dependencies automatically.
 ```bash
-mkdir build
-cd build
-cmake ..
-cmake --build .
+./build.sh
 ```
 
 ## Usage
@@ -105,7 +97,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[Your chosen license]
+Apache-2.0 license
 
 ## Acknowledgments
 
