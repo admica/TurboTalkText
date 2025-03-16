@@ -1,39 +1,114 @@
-TurboTalkText
+# TurboTalkText
 
-TurboTalkText is a real-time speech-to-text application for Windows, built with SDL3 for audio input and Whisper.cpp for transcription. Toggle recording with Ctrl+Shift, and it types out what you say after a 2-second silence. Exit with Ctrl+Shift+CapsLock. Perfect for hands-free typing or accessibility.
-Features
-Real-Time Transcription: Converts speech to text as you speak, with output typed via Windows keyboard emulation.
+A real-time speech-to-text application that transcribes your voice and types it automatically. Perfect for hands-free text input in any application.
 
-Hotkey Control: Ctrl+Shift to start/stop recording, Ctrl+Shift+CapsLock to quit.
+## Features
 
-Lightweight: Uses Whisper.cpp’s base.en model for efficient English transcription.
+- **Real-time Speech Recognition**: Uses OpenAI's Whisper model for accurate speech recognition
+- **Automatic Typing**: Simulates keyboard input to type transcribed text
+- **Smart Silence Detection**: Automatically detects speech segments and processes them efficiently
+- **Configurable Settings**: Easy JSON-based configuration for all parameters
+- **Multiple Audio Devices**: Supports selection of different audio input devices
+- **Hotkey Controls**: Simple keyboard shortcuts for controlling recording
 
-Cross-Platform Build: Built on WSL Ubuntu for Windows using MinGW.
+## Requirements
 
-Prerequisites
+- Windows operating system
+- SDL3 library
+- Whisper GGML model file (`ggml-base.en.bin`)
+- C++ compiler with C++17 support
 
-WSL2 with Ubuntu (tested on 22.04).
+## Installation
 
-Windows 10/11 (for running the .exe).
-
-Tools: wget, cmake, make, mingw-w64 (installed automatically by build.sh if missing).
-
-Installation
-
-Clone the Repo:
+1. Clone the repository:
+```bash
 git clone https://github.com/yourusername/TurboTalkText.git
 cd TurboTalkText
+```
 
-Run the Build Script:
-./build.sh
-Downloads SDL3 (v3.2.8) and Whisper.cpp (v1.7.4).
+2. Download the Whisper model:
+```bash
+# Download the base English model
+wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+```
 
-Fetches the ggml-base.en.bin model.
+3. Build the application:
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```
 
-Cross-compiles for Windows using MinGW.
+## Usage
 
-Copies TurboTalkText.exe, SDL3.dll, and ggml-base.en.bin to your Windows Desktop (/mnt/c/Users/<YourUser>/Desktop).
+1. Start the application
+2. Use the following hotkeys:
+   - `Ctrl+Shift`: Toggle recording on/off
+   - `Ctrl+Shift+CapsLock`: Exit application
 
-Optional: Specify a custom output directory:
-./build.sh /mnt/c/Users/YourUser/Path
+3. Speak clearly into your microphone
+4. The application will automatically:
+   - Detect when you're speaking
+   - Process the speech after you pause
+   - Type the transcribed text
 
+## Configuration
+
+Edit `settings.json` to customize:
+
+```json
+{
+    "audio": {
+        "device": "Line In (High Definition Audio Device)",
+        "sample_rate": 16000,
+        "silence_threshold": 0.001000,
+        "silence_duration_ms": 1000
+    },
+    "whisper": {
+        "model_path": "ggml-base.en.bin",
+        "language": "en",
+        "translate": false,
+        "beam_size": 10,
+        "threads": 4
+    },
+    "output": {
+        "type": "keyboard",
+        "add_punctuation": true,
+        "capitalize_sentences": true
+    }
+}
+```
+
+## Troubleshooting
+
+### Audio Issues
+- Ensure your microphone is properly connected and selected
+- Check Windows sound settings for proper input levels
+- Adjust `silence_threshold` if speech detection is too sensitive/insensitive
+
+### Transcription Issues
+- Verify the Whisper model file is present and correct
+- Try adjusting `beam_size` for better accuracy
+- Ensure you're speaking clearly and at a reasonable volume
+
+## Technical Details
+
+- Audio Processing: SDL3 for real-time audio capture
+- Speech Recognition: Whisper.cpp for efficient CPU-based inference
+- Text Output: Windows API for keyboard simulation
+- Configuration: JSON-based settings management
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[Your chosen license]
+
+## Acknowledgments
+
+- OpenAI for the Whisper model
+- SDL team for the audio framework
+- Whisper.cpp team for the efficient C++ implementation 

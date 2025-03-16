@@ -1,15 +1,15 @@
 {
     "audio": {
-        "device": "",
+        "device": "Line In (High Definition Audio Device)",
         "sample_rate": 16000,
-        "silence_threshold": 0.01,
-        "silence_duration_ms": 2000
+        "silence_threshold": 0.001000,
+        "silence_duration_ms": 1000
     },
     "whisper": {
         "model_path": "ggml-base.en.bin",
         "language": "en",
         "translate": false,
-        "beam_size": 5,
+        "beam_size": 10,
         "threads": 4
     },
     "output": {

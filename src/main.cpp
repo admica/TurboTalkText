@@ -236,21 +236,25 @@ struct TurboTalkText {
 
         // Process only if we have new data
         if (additional_amount > 0) {
+            printf("Received %d bytes of audio data\n", additional_amount);
             std::vector<float> samples(additional_amount / sizeof(float));
             
             // Get the data from the stream
             if (SDL_GetAudioStreamData(stream, samples.data(), additional_amount) == additional_amount) {
                 float energy = 0;
+                float peak = 0;
                 for (size_t i = 0; i < samples.size(); i++) {
                     energy += samples[i] * samples[i];
+                    peak = std::max(peak, std::abs(samples[i]));
                 }
                 energy /= samples.size();
 
-                printf("Audio energy: %.6f (threshold: %.6f)\n", energy, app->settings.audio.silence_threshold);
+                printf("Audio energy: %.6f (threshold: %.6f) Peak: %.6f\n", energy, app->settings.audio.silence_threshold, peak);
 
                 // If we detect sound
                 if (energy > app->settings.audio.silence_threshold) {
-                    printf("Sound detected! Buffer size: %zu samples\n", app->audio_buffer.size());
+                    printf("Sound detected! Buffer size before: %zu samples, adding %zu new samples\n", 
+                           app->audio_buffer.size(), samples.size());
                     app->audio_buffer.insert(app->audio_buffer.end(), samples.begin(), samples.end());
                     app->last_sound = std::chrono::steady_clock::now();
                 } 
@@ -276,47 +280,103 @@ struct TurboTalkText {
             return;
         }
 
-        printf("Starting transcription of %zu samples\n", audio_buffer.size());
+        printf("\n=== Starting Transcription ===\n");
+        printf("Buffer size: %zu samples (%.2f seconds)\n", 
+               audio_buffer.size(), 
+               static_cast<float>(audio_buffer.size()) / settings.audio.sample_rate);
+        printf("Peak amplitude: %.6f\n", 
+               *std::max_element(audio_buffer.begin(), audio_buffer.end(), 
+                               [](float a, float b) { return std::abs(a) < std::abs(b); }));
+
+        // Check for valid whisper context
+        if (!ctx) {
+            printf("Error: Whisper context is null\n");
+            return;
+        }
 
         // Set up Whisper parameters
         whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-        wparams.print_realtime = false;
+        wparams.print_realtime = true;  // Enable real-time printing
+        wparams.print_progress = true;   // Show progress
         wparams.language = settings.whisper.language.c_str();
         wparams.translate = settings.whisper.translate;
         wparams.n_threads = settings.whisper.threads;
         wparams.beam_size = settings.whisper.beam_size;
 
+        printf("Running Whisper inference with:\n");
+        printf("- Language: %s\n", wparams.language);
+        printf("- Beam size: %d\n", wparams.beam_size);
+        printf("- Threads: %d\n", wparams.n_threads);
+
         // Run Whisper inference
-        if (whisper_full(ctx, wparams, audio_buffer.data(), audio_buffer.size()) == 0) {
-            // Get number of segments
+        printf("\nStarting inference...\n");
+        int result = whisper_full(ctx, wparams, audio_buffer.data(), audio_buffer.size());
+        
+        if (result == 0) {
             int n_segments = whisper_full_n_segments(ctx);
-            printf("Transcription completed with %d segments\n", n_segments);
+            printf("\nTranscription completed with %d segments\n", n_segments);
+
+            if (n_segments == 0) {
+                printf("Warning: No segments detected in the audio\n");
+                return;
+            }
 
             // Process each segment
             for (int i = 0; i < n_segments; ++i) {
                 const char* text = whisper_full_get_segment_text(ctx, i);
-                printf("Segment %d text: %s\n", i, text);
-                
-                // Type out the text
-                if (text && strlen(text) > 0) {
-                    type_text(text);
+                if (!text || strlen(text) == 0) {
+                    printf("Warning: Empty text in segment %d\n", i);
+                    continue;
                 }
+                
+                printf("Segment %d text: %s\n", i, text);
+                printf("Typing text...\n");
+                type_text(text);
+                printf("Text typed.\n");
             }
         } else {
-            printf("Failed to run whisper inference\n");
+            printf("Failed to run whisper inference (error code: %d)\n", result);
         }
+        printf("=== Transcription Complete ===\n\n");
     }
 
     void type_text(const char *text) {
         if (!text) return;
         
+        printf("Typing: %s\n", text);
+        
+        // Add a small delay before typing
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
         INPUT ip = {INPUT_KEYBOARD};
         for (; *text; text++) {
-            ip.ki.wVk = VkKeyScanA(*text) & 0xFF;
-            ip.ki.dwFlags = 0; 
+            char c = *text;
+            SHORT vk = VkKeyScanA(c);
+            
+            // Handle shift key for uppercase letters and symbols
+            bool need_shift = (vk >> 8) & 1;
+            if (need_shift) {
+                ip.ki.wVk = VK_SHIFT;
+                ip.ki.dwFlags = 0;
+                SendInput(1, &ip, sizeof(INPUT));
+            }
+            
+            // Press and release the character key
+            ip.ki.wVk = vk & 0xFF;
+            ip.ki.dwFlags = 0;
             SendInput(1, &ip, sizeof(INPUT));
-            ip.ki.dwFlags = KEYEVENTF_KEYUP; 
+            ip.ki.dwFlags = KEYEVENTF_KEYUP;
             SendInput(1, &ip, sizeof(INPUT));
+            
+            // Release shift if it was pressed
+            if (need_shift) {
+                ip.ki.wVk = VK_SHIFT;
+                ip.ki.dwFlags = KEYEVENTF_KEYUP;
+                SendInput(1, &ip, sizeof(INPUT));
+            }
+            
+            // Add a small delay between characters
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
