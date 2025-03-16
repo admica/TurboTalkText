@@ -33,14 +33,15 @@
 
 # Downloaded tarballs
 *.tar.gz
-v*.tar.gz
 
 # Extracted whisper.cpp directories
 whisper.cpp
 
-# SDL3 directories and symlinks
+# SDL directories and symlinks
 SDL3-*
 SDL3-mingw
+SDL2-*
+SDL2-mingw
 
 # Common build artifacts
 *.o
