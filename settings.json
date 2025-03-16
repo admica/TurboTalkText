@@ -6,7 +6,7 @@
         "silence_duration_ms": 1000
     },
     "whisper": {
-        "model_path": "ggml-base.en.bin",
+        "model_path": "whisper.cpp/models/ggml-base.en.bin",
         "language": "en",
         "translate": false,
         "beam_size": 10,
