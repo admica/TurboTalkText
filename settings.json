@@ -1,6 +1,6 @@
 {
     "audio": {
-        "device": "default",
+        "device": "",
         "sample_rate": 16000,
         "silence_threshold": 0.009,
         "silence_duration_ms": 2500
@@ -34,7 +34,8 @@
         "continuous_mode": [
             "jarvis listen continuously",
             "jarvis continuous mode",
-            "jarvis always listen"
+            "jarvis always listen",
+            "jarvis listening mode"
         ],
         "exit_continuous_mode": [
             "jarvis stop listening",
