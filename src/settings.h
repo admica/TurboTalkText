@@ -3,6 +3,7 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 class Settings {
 public:
@@ -26,6 +27,15 @@ public:
     std::string outputType;
     bool addPunctuation;
     bool capitalizeSentences;
+    
+    // Voice command settings
+    struct VoiceCommands {
+        std::vector<std::string> mouseMode;
+        std::vector<std::string> textMode;
+        std::vector<std::string> continuousMode;
+        std::vector<std::string> exitContinuousMode;
+    };
+    VoiceCommands commands;
 
 private:
     nlohmann::json json;

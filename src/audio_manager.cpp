@@ -1,11 +1,16 @@
 #include "audio_manager.h"
 #include "logger.h"
 #include <cmath>
+#include <algorithm>
 
 AudioManager::AudioManager(const Settings& settings) 
-    : settings(settings), deviceId(0), recording(false), silenceCounter(0) {
+    : settings(settings), deviceId(0), recording(false), silenceCounter(0),
+      continuousMode(false), newContinuousAudioReady(false) {
     samplesPerChunk = settings.sampleRate / 1000 * 64; // 64ms chunks
     silenceChunks = settings.silenceDurationMs / 64; // Chunks for silence duration
+    
+    // For continuous mode, process audio every 3 seconds with 0.5 second overlap
+    continuousSampleThreshold = settings.sampleRate * 3; // 3 seconds of audio
     
     // Initialize desired audio spec
     SDL_zero(desiredSpec);
@@ -15,6 +20,9 @@ AudioManager::AudioManager(const Settings& settings)
     desiredSpec.samples = samplesPerChunk;
     desiredSpec.callback = AudioManager::audioCallback;
     desiredSpec.userdata = this;
+    
+    // Initialize lastContinuousProcessTime
+    lastContinuousProcessTime = std::chrono::steady_clock::now();
 }
 
 AudioManager::~AudioManager() {
@@ -69,10 +77,12 @@ bool AudioManager::init() {
 void AudioManager::startRecording() {
     if (!recording) {
         audioBuffer.clear();
+        continuousBuffer.clear();
         silenceCounter = 0;
         SDL_PauseAudioDevice(deviceId, 0);
         recording = true;
-        Logger::info("Recording started");
+        lastContinuousProcessTime = std::chrono::steady_clock::now();
+        Logger::info("Recording started" + std::string(continuousMode ? " (continuous mode)" : ""));
     }
 }
 
@@ -80,6 +90,8 @@ void AudioManager::stopRecording() {
     if (recording) {
         SDL_PauseAudioDevice(deviceId, 1);
         recording = false;
+        continuousMode = false;
+        newContinuousAudioReady = false;
         Logger::info("Recording stopped");
     }
 }
@@ -96,6 +108,51 @@ bool AudioManager::checkSilence() {
     return silenceCounter >= silenceChunks;
 }
 
+void AudioManager::setContinuousMode(bool enabled) {
+    continuousMode = enabled;
+    if (enabled) {
+        Logger::info("Continuous mode enabled");
+        continuousBuffer.clear();
+        newContinuousAudioReady = false;
+        lastContinuousProcessTime = std::chrono::steady_clock::now();
+    } else {
+        Logger::info("Continuous mode disabled");
+    }
+}
+
+bool AudioManager::isInContinuousMode() const {
+    return continuousMode;
+}
+
+bool AudioManager::hasNewContinuousAudio() const {
+    return newContinuousAudioReady;
+}
+
+std::vector<float> AudioManager::getContinuousAudioChunk() {
+    newContinuousAudioReady = false;
+    
+    // Create a copy to return
+    std::vector<float> result = continuousBuffer;
+    
+    // Keep the last 0.5 seconds (overlap) for context
+    size_t overlapSamples = settings.sampleRate / 2; // 0.5 seconds
+    
+    if (continuousBuffer.size() > overlapSamples) {
+        // Keep only the overlap samples
+        continuousBuffer.erase(continuousBuffer.begin(), 
+                              continuousBuffer.end() - overlapSamples);
+    } else {
+        // If we don't have enough samples, just clear it
+        continuousBuffer.clear();
+    }
+    
+    return result;
+}
+
+void AudioManager::resetContinuousFlag() {
+    newContinuousAudioReady = false;
+}
+
 void AudioManager::audioCallback(void* userdata, Uint8* stream, int len) {
     AudioManager* self = static_cast<AudioManager*>(userdata);
     self->processAudioData(stream, len);
@@ -104,7 +161,25 @@ void AudioManager::audioCallback(void* userdata, Uint8* stream, int len) {
 void AudioManager::processAudioData(const Uint8* stream, int len) {
     const float* floatStream = reinterpret_cast<const float*>(stream);
     int numSamples = len / sizeof(float);
+    
+    // Add to regular audio buffer
     audioBuffer.insert(audioBuffer.end(), floatStream, floatStream + numSamples);
+    
+    // If continuous mode is active, also add to continuous buffer
+    if (continuousMode) {
+        continuousBuffer.insert(continuousBuffer.end(), floatStream, floatStream + numSamples);
+        
+        // Check if we have enough samples for continuous processing
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - lastContinuousProcessTime).count();
+            
+        // Process approximately every 3 seconds
+        if (continuousBuffer.size() >= continuousSampleThreshold || elapsed >= 3000) {
+            newContinuousAudioReady = true;
+            lastContinuousProcessTime = now;
+        }
+    }
 
     // RMS for silence detection
     float sum = 0.0f;

@@ -54,8 +54,8 @@ Edit `settings.json` to customize:
     "audio": {
         "device": "Line In (High Definition Audio Device)",
         "sample_rate": 16000,
-        "silence_threshold": 0.001000,
-        "silence_duration_ms": 1000
+        "silence_threshold": 0.0050,
+        "silence_duration_ms": 3000
     },
     "whisper": {
         "model_path": "ggml-base.en.bin",

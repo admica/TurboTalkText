@@ -14,6 +14,7 @@ set(SOURCES
     src/hotkey.cpp
     src/settings.cpp
     src/logger.cpp
+    src/mouse.cpp
 )
 
 # Static linking

@@ -26,6 +26,18 @@ bool Hotkey::registerHotkey() {
         return false;
     }
 
+    // Process initial messages and ensure window is ready to receive hotkeys
+    // This brief show and hide forces the window to process WM_CREATE properly
+    ShowWindow(hWnd, SW_SHOW);
+    ShowWindow(hWnd, SW_HIDE);
+    
+    // Process any pending messages to ensure WM_CREATE is handled
+    MSG msg;
+    while (PeekMessage(&msg, hWnd, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
     if (!RegisterHotKey(hWnd, HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, 'A')) {
         Logger::error("Failed to register recording toggle hotkey (Ctrl+Shift+A)");
         DestroyWindow(hWnd);
