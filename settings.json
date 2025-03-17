@@ -1,9 +1,9 @@
 {
     "audio": {
-        "device": "Line In (High Definition Audio Device)",
+        "device": "",
         "sample_rate": 16000,
-        "silence_threshold": 0.001000,
-        "silence_duration_ms": 1000
+        "silence_threshold": 0.001500,
+        "silence_duration_ms": 2000
     },
     "whisper": {
         "model_path": "whisper.cpp/models/ggml-base.en.bin",
