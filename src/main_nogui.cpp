@@ -12,8 +12,10 @@
 #include <cctype>
 #include <deque>
 #include <string>
+#include <regex>
+#include <sstream>
 
-// Application modes
+// Application input modes
 enum InputMode {
     TEXT_MODE,
     MOUSE_MODE
@@ -44,6 +46,26 @@ static bool containsAnyCommand(const std::string& text, const std::vector<std::s
     return false;
 }
 
+// Helper function to clean up transcription text
+static std::string cleanTranscription(const std::string& text) {
+    // Remove [BLANK_AUDIO] markers
+    std::string result = text;
+    
+    // Define a regex pattern to match [BLANK_AUDIO] markers with optional whitespace
+    std::regex blankAudioPattern("\\s*\\[BLANK_AUDIO\\]\\s*");
+    
+    // Replace matches with a space
+    result = std::regex_replace(result, blankAudioPattern, " ");
+    
+    // Trim extra whitespace
+    result = std::regex_replace(result, std::regex("\\s+"), " ");
+    
+    // Trim leading/trailing whitespace
+    result = std::regex_replace(result, std::regex("^\\s+|\\s+$"), "");
+    
+    return result;
+}
+
 // Remove duplicate words at the boundary of two strings
 static std::string mergeContinuousText(const std::string& previousText, const std::string& newText) {
     if (previousText.empty()) {
@@ -54,50 +76,91 @@ static std::string mergeContinuousText(const std::string& previousText, const st
     std::string prevLower = normalizeText(previousText);
     std::string newLower = normalizeText(newText);
     
-    // Extract last few words from previous text (up to 5 words)
+    // Extract last few words from previous text (up to 8 words for better context)
     std::vector<std::string> prevWords;
-    size_t start = 0;
     size_t wordCount = 0;
     
-    // Find the last 5 words of previous text
-    for (size_t i = prevLower.size(); i > 0 && wordCount < 5; i--) {
-        if (i == 1 || std::isspace(prevLower[i-1])) {
-            std::string word = prevLower.substr(i, prevLower.find_first_of(" \t\n", i) - i);
-            if (!word.empty()) {
-                prevWords.insert(prevWords.begin(), word);
-                wordCount++;
-            }
-        }
+    // Tokenize previous text into words
+    std::istringstream prevStream(prevLower);
+    std::string word;
+    std::vector<std::string> allPrevWords;
+    
+    while (prevStream >> word && wordCount < 20) { // Get up to 20 words
+        allPrevWords.push_back(word);
+        wordCount++;
     }
+    
+    // Get last 8 words or all available words if less than 8
+    int wordsToUse = std::min(8, static_cast<int>(allPrevWords.size()));
+    prevWords.assign(allPrevWords.end() - wordsToUse, allPrevWords.end());
     
     // Find the best overlap point
     size_t bestOverlapPos = 0;
     size_t bestOverlapLength = 0;
+    size_t bestWordCount = 0;
     
-    for (size_t i = 0; i < prevWords.size(); i++) {
-        // Try to match a sequence of words
+    // Try different sequence lengths
+    for (size_t startIdx = 0; startIdx < prevWords.size(); startIdx++) {
         std::string sequence;
-        for (size_t j = i; j < prevWords.size(); j++) {
+        
+        for (size_t i = startIdx; i < prevWords.size(); i++) {
             if (!sequence.empty()) {
                 sequence += " ";
             }
-            sequence += prevWords[j];
+            sequence += prevWords[i];
             
             // Check if this sequence is at the start of the new text
-            if (newLower.find(sequence) == 0 && sequence.length() > bestOverlapLength) {
+            size_t pos = newLower.find(sequence);
+            if (pos == 0 && sequence.length() > bestOverlapLength) {
                 bestOverlapLength = sequence.length();
-                bestOverlapPos = newLower.find_first_of(" \t\n", bestOverlapLength) + 1;
+                bestWordCount = i - startIdx + 1;
+                
+                // Find the position after the last matched word
+                size_t spacePos = newLower.find(' ', bestOverlapLength);
+                bestOverlapPos = (spacePos != std::string::npos) ? spacePos + 1 : newLower.length();
             }
         }
     }
     
-    // If we found an overlap, merge the texts
+    // Preserve proper capitalization and punctuation
     if (bestOverlapLength > 0 && bestOverlapPos > 0) {
-        return previousText + " " + newText.substr(bestOverlapPos);
+        // Use the new text after the overlap to maintain original capitalization
+        std::string mergedText = previousText;
+        
+        // If the last character is not punctuation or space, add a space
+        if (!mergedText.empty() && !std::ispunct(mergedText.back()) && !std::isspace(mergedText.back())) {
+            mergedText += " ";
+        }
+        
+        // Add remaining text from new chunk
+        if (bestOverlapPos < newText.length()) {
+            mergedText += newText.substr(bestOverlapPos);
+        }
+        
+        // Ensure proper spacing after punctuation
+        std::regex multipleSpaces("\\s+");
+        mergedText = std::regex_replace(mergedText, multipleSpaces, " ");
+        
+        return mergedText;
     }
     
-    // No overlap found, just append with a space
-    return previousText + " " + newText;
+    // No overlap found, just append with a space or punctuation-aware join
+    if (!previousText.empty() && !std::ispunct(previousText.back()) && !std::isspace(previousText.back())) {
+        // If the new text starts with lowercase, just add a space
+        if (!newText.empty() && std::islower(newText[0])) {
+            return previousText + " " + newText;
+        }
+        // If new text starts with uppercase, it might be a new sentence
+        else if (!newText.empty() && std::isupper(newText[0])) {
+            // Add period if not already ending with punctuation
+            return previousText + ". " + newText;
+        } else {
+            return previousText + " " + newText;
+        }
+    } else {
+        // Previous text already ends with punctuation or space
+        return previousText + newText;
+    }
 }
 
 int main() {
@@ -164,13 +227,14 @@ int main() {
         return 1;
     }
 
-    // Current application mode
-    InputMode currentMode = TEXT_MODE;
+    // Current input mode and continuous mode status
+    InputMode currentInputMode = TEXT_MODE;
+    bool continuousModeActive = false;
     
     // Buffer for continuous mode
     std::string continuousTextBuffer;
     
-    // Use commands from settings instead of hardcoded values
+    // Use commands from settings
     const std::vector<std::string>& MOUSE_MODE_COMMANDS = settings.commands.mouseMode;
     const std::vector<std::string>& TEXT_MODE_COMMANDS = settings.commands.textMode;
     const std::vector<std::string>& CONTINUOUS_MODE_COMMANDS = settings.commands.continuousMode;
@@ -189,6 +253,9 @@ int main() {
     }
     if (!TEXT_MODE_COMMANDS.empty()) {
         Logger::info("Say '" + TEXT_MODE_COMMANDS[0] + "' to return to text mode");
+    }
+    if (!EXIT_CONTINUOUS_MODE_COMMANDS.empty()) {
+        Logger::info("Say '" + EXIT_CONTINUOUS_MODE_COMMANDS[0] + "' to exit continuous listening mode");
     }
     Logger::info("In mouse mode, say 'up', 'down', 'left', 'right', 'click', etc.");
 
@@ -214,46 +281,55 @@ int main() {
             continue;
         }
 
-        // Check for hotkey press - this toggles recording regardless of mode
+        // Check for hotkey press - this toggles recording
         if (hotkey.isHotkeyPressed()) {
             if (audioManager.isRecording()) {
                 Logger::info("Hotkey pressed: STOP recording");
                 audioManager.stopRecording();
                 
-                // If we were in continuous mode, reset the buffer
-                if (currentMode == TEXT_MODE) {
+                // If we were in continuous mode, just exit the continuous mode
+                if (continuousModeActive) {
+                    continuousModeActive = false;
+                    audioManager.setContinuousMode(false);
                     continuousTextBuffer.clear();
-                    currentMode = MOUSE_MODE;
-                    Logger::info("Exited TEXT MODE");
+                    Logger::info("Exited CONTINUOUS MODE");
                 } else {
-                    // Normal transcription for other modes
+                    // Normal transcription for regular recording
                     Logger::info("Transcribing audio");
                     std::string transcribedText = transcription.transcribe(audioManager.getAudioData());
+                    
+                    // Clean the transcription text
+                    transcribedText = cleanTranscription(transcribedText);
+                    
                     Logger::info("Transcription complete: \"" + transcribedText + "\"");
                     
                     // Process the transcribed text based on current mode
                     std::string normalizedText = normalizeText(transcribedText);
                     
-                    if (currentMode == TEXT_MODE) {
-                        // Check for mode switch commands
-                        if (containsAnyCommand(normalizedText, MOUSE_MODE_COMMANDS)) {
-                            currentMode = MOUSE_MODE;
-                            Logger::info("Switched to MOUSE MODE");
-                        } else if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
-                            currentMode = TEXT_MODE;
-                            continuousTextBuffer.clear();
-                            audioManager.startRecording();
-                            Logger::info("Switched to TEXT MODE");
-                        } else {
+                    // Check for mode switch commands first
+                    if (containsAnyCommand(normalizedText, CONTINUOUS_MODE_COMMANDS)) {
+                        // Enable continuous mode
+                        continuousModeActive = true;
+                        audioManager.startRecording();
+                        audioManager.setContinuousMode(true);
+                        continuousTextBuffer.clear();
+                        Logger::info("Enabled CONTINUOUS MODE (current input: " + 
+                                    std::string(currentInputMode == TEXT_MODE ? "TEXT" : "MOUSE") + ")");
+                        continue;
+                    } else if (containsAnyCommand(normalizedText, MOUSE_MODE_COMMANDS)) {
+                        // Switch to mouse mode
+                        currentInputMode = MOUSE_MODE;
+                        Logger::info("Switched to MOUSE MODE");
+                    } else if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
+                        // Switch to text mode
+                        currentInputMode = TEXT_MODE;
+                        Logger::info("Switched to TEXT MODE");
+                    } else {
+                        // Process based on current input mode
+                        if (currentInputMode == TEXT_MODE) {
                             // Normal text input
                             keyboard.typeText(transcribedText);
-                        }
-                    } else if (currentMode == MOUSE_MODE) {
-                        // Check for exit command
-                        if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
-                            currentMode = TEXT_MODE;
-                            Logger::info("Switched to TEXT MODE");
-                        } else {
+                        } else { // MOUSE_MODE
                             // Process as mouse command
                             if (!mouse.processCommand(transcribedText)) {
                                 Logger::info("Unrecognized mouse command: " + transcribedText);
@@ -268,37 +344,44 @@ int main() {
             hotkey.resetHotkeyPressed();
         }
 
-        // Check for auto-stop due to silence (only in regular recording modes)
-        if (audioManager.isRecording() && currentMode != TEXT_MODE && audioManager.checkSilence()) {
+        // Check for auto-stop due to silence (only in regular recording mode)
+        if (audioManager.isRecording() && !continuousModeActive && audioManager.checkSilence()) {
             Logger::info("Silence detected while recording, STOP recording");
             audioManager.stopRecording();
             Logger::info("Transcribing audio");
             std::string transcribedText = transcription.transcribe(audioManager.getAudioData());
+            
+            // Clean the transcription text
+            transcribedText = cleanTranscription(transcribedText);
+            
             Logger::info("Transcription complete: \"" + transcribedText + "\"");
             
             // Process the transcribed text based on current mode
             std::string normalizedText = normalizeText(transcribedText);
             
-            if (currentMode == TEXT_MODE) {
-                // Check for mode switch commands
-                if (containsAnyCommand(normalizedText, MOUSE_MODE_COMMANDS)) {
-                    currentMode = MOUSE_MODE;
-                    Logger::info("Switched to MOUSE MODE");
-                } else if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
-                    currentMode = TEXT_MODE;
-                    continuousTextBuffer.clear();
-                    audioManager.startRecording();
-                    Logger::info("Switched to TEXT MODE");
-                } else {
+            // Check for mode switch commands first
+            if (containsAnyCommand(normalizedText, CONTINUOUS_MODE_COMMANDS)) {
+                // Enable continuous mode
+                continuousModeActive = true;
+                audioManager.startRecording();
+                audioManager.setContinuousMode(true);
+                continuousTextBuffer.clear();
+                Logger::info("Enabled CONTINUOUS MODE (current input: " + 
+                            std::string(currentInputMode == TEXT_MODE ? "TEXT" : "MOUSE") + ")");
+            } else if (containsAnyCommand(normalizedText, MOUSE_MODE_COMMANDS)) {
+                // Switch to mouse mode
+                currentInputMode = MOUSE_MODE;
+                Logger::info("Switched to MOUSE MODE");
+            } else if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
+                // Switch to text mode
+                currentInputMode = TEXT_MODE;
+                Logger::info("Switched to TEXT MODE");
+            } else {
+                // Process based on current input mode
+                if (currentInputMode == TEXT_MODE) {
                     // Normal text input
                     keyboard.typeText(transcribedText);
-                }
-            } else if (currentMode == MOUSE_MODE) {
-                // Check for exit command
-                if (containsAnyCommand(normalizedText, TEXT_MODE_COMMANDS)) {
-                    currentMode = TEXT_MODE;
-                    Logger::info("Switched to TEXT MODE");
-                } else {
+                } else { // MOUSE_MODE
                     // Process as mouse command
                     if (!mouse.processCommand(transcribedText)) {
                         Logger::info("Unrecognized mouse command: " + transcribedText);
@@ -308,7 +391,7 @@ int main() {
         }
         
         // Handle continuous mode processing
-        if (currentMode == TEXT_MODE && audioManager.isRecording()) {
+        if (continuousModeActive && audioManager.isRecording()) {
             // Check if we have a new chunk of audio to process
             if (audioManager.hasNewContinuousAudio()) {
                 std::vector<float> audioChunk = audioManager.getContinuousAudioChunk();
@@ -318,34 +401,58 @@ int main() {
                     std::string transcribedChunk = transcription.transcribe(audioChunk);
                     
                     if (!transcribedChunk.empty()) {
+                        // Clean the transcription text
+                        transcribedChunk = cleanTranscription(transcribedChunk);
+                        
                         Logger::info("Continuous chunk transcribed: \"" + transcribedChunk + "\"");
                         
-                        // Check for exit commands
+                        // Check for commands
                         std::string normalizedChunk = normalizeText(transcribedChunk);
                         
+                        // Check for exit continuous mode command
                         if (containsAnyCommand(normalizedChunk, EXIT_CONTINUOUS_MODE_COMMANDS)) {
                             Logger::info("Exiting continuous mode");
-                            currentMode = TEXT_MODE;
+                            continuousModeActive = false;
                             audioManager.stopRecording();
+                            audioManager.setContinuousMode(false);
                             continuousTextBuffer.clear();
-                        } else if (containsAnyCommand(normalizedChunk, TEXT_MODE_COMMANDS)) {
-                            // Switch to text mode but keep continuous mode active
-                            Logger::info("Command detected but continuing in continuous mode");
+                        } 
+                        // Check for mode switch commands
+                        else if (containsAnyCommand(normalizedChunk, MOUSE_MODE_COMMANDS)) {
+                            // Check if we need to type out accumulated text before switching modes
+                            bool wasInTextMode = (currentInputMode == TEXT_MODE);
                             
-                            // Type the accumulated text so far
-                            if (!continuousTextBuffer.empty()) {
+                            // Switch to mouse mode but stay in continuous mode
+                            currentInputMode = MOUSE_MODE;
+                            Logger::info("Switched to MOUSE MODE (continuous listening active)");
+                            
+                            // Type any accumulated text before switching to mouse mode
+                            if (wasInTextMode && !continuousTextBuffer.empty()) {
                                 keyboard.typeText(continuousTextBuffer);
                                 continuousTextBuffer.clear();
                             }
-                        } else {
-                            // Merge with previous text, avoiding duplicates at boundaries
+                        } 
+                        else if (containsAnyCommand(normalizedChunk, TEXT_MODE_COMMANDS)) {
+                            // Switch to text mode but stay in continuous mode
+                            currentInputMode = TEXT_MODE;
+                            Logger::info("Switched to TEXT MODE (continuous listening active)");
+                        }
+                        // Process based on current input mode
+                        else if (currentInputMode == TEXT_MODE) {
+                            // In text mode, accumulate text
                             continuousTextBuffer = mergeContinuousText(continuousTextBuffer, transcribedChunk);
                             
-                            // Check if enough text has accumulated to type
-                            if (continuousTextBuffer.length() > 100) {
+                            // Type when enough text has accumulated
+                            if (continuousTextBuffer.length() > 150) {
                                 Logger::info("Typing accumulated text: \"" + continuousTextBuffer + "\"");
                                 keyboard.typeText(continuousTextBuffer);
                                 continuousTextBuffer.clear();
+                            }
+                        } 
+                        else { // MOUSE_MODE
+                            // In mouse mode, process as mouse command
+                            if (!mouse.processCommand(transcribedChunk)) {
+                                Logger::info("Unrecognized mouse command: " + transcribedChunk);
                             }
                         }
                     }

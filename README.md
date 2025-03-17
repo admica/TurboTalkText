@@ -1,12 +1,17 @@
 # TurboTalkText
 
-A real-time speech-to-text application that transcribes your voice and types it automatically. Perfect for hands-free text input in any application.
+A real-time speech-to-text application that transcribes your voice and types it automatically. Perfect for hands-free text input and computer control in any application.
 
 ## Features
 
 - **Real-time Speech Recognition**: Uses OpenAI's Whisper model for accurate speech recognition
 - **Automatic Typing**: Simulates keyboard input to type transcribed text
+- **Voice-Controlled Mouse**: Control mouse movement and clicks with voice commands
+- **Precise Mouse Control**: Specify exact pixel distances (e.g., "right 250")
+- **Continuous Listening Mode**: Transcribe speech continuously without needing to toggle recording
+- **Dual-Mode Operation**: Switch between text input and mouse control seamlessly
 - **Smart Silence Detection**: Automatically detects speech segments and processes them efficiently
+- **Customizable Voice Commands**: Configure keyword phrases for all modes via settings.json
 - **Configurable Settings**: Easy JSON-based configuration for all parameters
 - **Multiple Audio Devices**: Supports selection of different audio input devices
 - **Hotkey Controls**: Simple keyboard shortcuts for controlling recording
@@ -26,7 +31,7 @@ git clone https://github.com/admica/TurboTalkText.git
 cd TurboTalkText
 ```
 
-3. Build the application:
+2. Build the application:
 The bash script handles all downloading of dependencies automatically.
 ```bash
 ./build.sh
@@ -36,7 +41,7 @@ The bash script handles all downloading of dependencies automatically.
 
 1. Start the application
 2. Use the following hotkeys:
-   - `Ctrl+Shift`: Toggle recording on/off
+   - `Ctrl+Shift+A`: Toggle recording on/off
    - `Ctrl+Shift+CapsLock`: Exit application
 
 3. Speak clearly into your microphone
@@ -45,6 +50,34 @@ The bash script handles all downloading of dependencies automatically.
    - Process the speech after you pause
    - Type the transcribed text
 
+### Voice Commands
+
+#### Mode Switching
+- Say **"Jarvis move the mouse"** to enter mouse control mode
+- Say **"Jarvis listen continuously"** to enable continuous listening mode
+- Say **"Jarvis stop"** to return to text input mode
+- Say **"Jarvis stop listening"** to exit continuous mode
+
+#### Mouse Control
+- Basic directions: "up", "down", "left", "right"
+- Precise movement: "right 120", "up 50", "left 200", etc.
+- Mouse actions: "click", "right click", "double click"
+- Speed adjustment: "faster", "slower"
+
+### Operating Modes
+
+#### Text Input Mode
+The default mode. Speech is transcribed and typed into your active application.
+
+#### Mouse Control Mode
+Your voice commands move the cursor and perform clicks.
+
+#### Continuous Listening Mode
+Works with both text and mouse modes. Instead of toggling recording, it continuously listens and:
+- Transcribes and types text when in text mode
+- Follows mouse commands when in mouse mode
+- Allows switching between text and mouse modes without exiting continuous listening
+
 ## Configuration
 
 Edit `settings.json` to customize:
@@ -52,22 +85,48 @@ Edit `settings.json` to customize:
 ```json
 {
     "audio": {
-        "device": "Line In (High Definition Audio Device)",
+        "device": "default",
         "sample_rate": 16000,
-        "silence_threshold": 0.0050,
-        "silence_duration_ms": 3000
+        "silence_threshold": 0.011,
+        "silence_duration_ms": 2000
     },
     "whisper": {
         "model_path": "ggml-base.en.bin",
         "language": "en",
         "translate": false,
-        "beam_size": 10,
+        "beam_size": 5,
         "threads": 4
     },
     "output": {
         "type": "keyboard",
         "add_punctuation": true,
         "capitalize_sentences": true
+    },
+    "voice_commands": {
+        "mouse_mode": [
+            "jarvis move the mouse", 
+            "mouse mode", 
+            "move the mouse", 
+            "control the mouse"
+        ],
+        "text_mode": [
+            "jarvis stop", 
+            "text mode", 
+            "typing mode", 
+            "keyboard mode"
+        ],
+        "continuous_mode": [
+            "jarvis listen continuously", 
+            "continuous mode", 
+            "always listen", 
+            "keep listening"
+        ],
+        "exit_continuous_mode": [
+            "jarvis stop listening", 
+            "stop continuous", 
+            "exit continuous mode", 
+            "back to normal"
+        ]
     }
 }
 ```
@@ -84,12 +143,18 @@ Edit `settings.json` to customize:
 - Try adjusting `beam_size` for better accuracy
 - Ensure you're speaking clearly and at a reasonable volume
 
+### Mouse Control Issues
+- Speak direction commands clearly and distinctly
+- For numeric movements, make sure to clearly say both the direction and number
+- If movements are too fast or slow, adjust with "faster" or "slower" commands
+
 ## Technical Details
 
 - Audio Processing: SDL2 for real-time audio capture
 - Speech Recognition: Whisper.cpp for efficient CPU-based inference
-- Text Output: Windows API for keyboard simulation
-- Configuration: JSON-based settings management
+- Text & Input Simulation: Windows API for keyboard and mouse control
+- Configuration: JSON-based settings management with customizable voice commands
+- Continuous Processing: Implements overlapping audio segments with smart text merging
 
 ## Contributing
 

@@ -9,8 +9,8 @@ AudioManager::AudioManager(const Settings& settings)
     samplesPerChunk = settings.sampleRate / 1000 * 64; // 64ms chunks
     silenceChunks = settings.silenceDurationMs / 64; // Chunks for silence duration
     
-    // For continuous mode, process audio every 3 seconds with 0.5 second overlap
-    continuousSampleThreshold = settings.sampleRate * 3; // 3 seconds of audio
+    // For continuous mode, process audio every 2.5 seconds with 1 second overlap (increased from 0.5s)
+    continuousSampleThreshold = settings.sampleRate * 2.5; // 2.5 seconds of audio (reduced from 3s)
     
     // Initialize desired audio spec
     SDL_zero(desiredSpec);
@@ -134,8 +134,8 @@ std::vector<float> AudioManager::getContinuousAudioChunk() {
     // Create a copy to return
     std::vector<float> result = continuousBuffer;
     
-    // Keep the last 0.5 seconds (overlap) for context
-    size_t overlapSamples = settings.sampleRate / 2; // 0.5 seconds
+    // Keep the last 1 second (overlap) for context (increased from 0.5 seconds)
+    size_t overlapSamples = settings.sampleRate * 1; // 1 second overlap
     
     if (continuousBuffer.size() > overlapSamples) {
         // Keep only the overlap samples

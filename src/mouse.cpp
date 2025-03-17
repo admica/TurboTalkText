@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <regex>
+#include <sstream>
 
 // Helper function to normalize text for command matching (static to limit scope to this file)
 static std::string normalizeText(const std::string& input) {
@@ -17,6 +18,24 @@ static std::string normalizeText(const std::string& input) {
                  [](unsigned char c){ return std::ispunct(c); }), result.end());
                  
     return result;
+}
+
+// Helper function to extract a number from a string
+static bool extractNumber(const std::string& input, int& number) {
+    // Define a regex pattern to match numbers
+    std::regex numberPattern("\\b(\\d+)\\b");
+    std::smatch matches;
+    
+    if (std::regex_search(input, matches, numberPattern) && matches.size() > 1) {
+        try {
+            number = std::stoi(matches[1].str());
+            return true;
+        } catch (std::exception& e) {
+            // Handle conversion errors
+            return false;
+        }
+    }
+    return false;
 }
 
 void Mouse::moveRelative(int dx, int dy) {
@@ -60,10 +79,22 @@ bool Mouse::processCommand(const std::string& command) {
     const std::string FASTER_COMMANDS[] = {"faster", "speed up", "increase speed"};
     const std::string SLOWER_COMMANDS[] = {"slower", "slow down", "decrease speed"};
     
+    // Try to extract a numeric value for precise movement
+    int pixels = 0;
+    bool hasPixelValue = extractNumber(normalizedCommand, pixels);
+    
+    // If no number was found, use the default movement speed
+    if (!hasPixelValue) {
+        pixels = movementSpeed;
+    } else {
+        // Limit to reasonable values to prevent accidental huge movements
+        pixels = std::min(pixels, 1000);
+    }
+    
     // Up commands
     for (const auto& cmd : UP_COMMANDS) {
         if (normalizedCommand.find(cmd) != std::string::npos) {
-            moveRelative(0, -movementSpeed);
+            moveRelative(0, -pixels);
             return true;
         }
     }
@@ -71,7 +102,7 @@ bool Mouse::processCommand(const std::string& command) {
     // Down commands
     for (const auto& cmd : DOWN_COMMANDS) {
         if (normalizedCommand.find(cmd) != std::string::npos) {
-            moveRelative(0, movementSpeed);
+            moveRelative(0, pixels);
             return true;
         }
     }
@@ -79,7 +110,7 @@ bool Mouse::processCommand(const std::string& command) {
     // Left commands
     for (const auto& cmd : LEFT_COMMANDS) {
         if (normalizedCommand.find(cmd) != std::string::npos) {
-            moveRelative(-movementSpeed, 0);
+            moveRelative(-pixels, 0);
             return true;
         }
     }
@@ -87,7 +118,7 @@ bool Mouse::processCommand(const std::string& command) {
     // Right commands
     for (const auto& cmd : RIGHT_COMMANDS) {
         if (normalizedCommand.find(cmd) != std::string::npos) {
-            moveRelative(movementSpeed, 0);
+            moveRelative(pixels, 0);
             return true;
         }
     }
