@@ -11,12 +11,15 @@ public:
     bool registerHotkey();
     void unregisterHotkey();
     bool isHotkeyPressed() const;
+    bool isExitHotkeyPressed() const;
     void resetHotkeyPressed();
+    void resetExitHotkeyPressed();
 
 private:
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
     HWND hWnd;
     std::atomic<bool> hotkeyPressed;
+    std::atomic<bool> exitHotkeyPressed;
 };
 
 #endif // HOTKEY_H

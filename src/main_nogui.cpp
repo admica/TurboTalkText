@@ -52,6 +52,10 @@ int main() {
         return 1;
     }
 
+    Logger::info("TurboTalkText started");
+    Logger::info("Press Ctrl+Shift+A to toggle recording");
+    Logger::info("Press Ctrl+Shift+CapsLock to exit");
+
     // Main loop
     bool running = true;
     while (running) {
@@ -66,15 +70,25 @@ int main() {
             DispatchMessage(&msg);
         }
 
+        // Check for exit hotkey press
+        if (hotkey.isExitHotkeyPressed()) {
+            Logger::info("Exit hotkey pressed: Shutting down application");
+            running = false;
+            hotkey.resetExitHotkeyPressed();
+            continue;
+        }
+
         // Check for hotkey press
         if (hotkey.isHotkeyPressed()) {
             if (audioManager.isRecording()) {
-                // Stop recording
+                Logger::info("Hotkey pressed: STOP recording");
                 audioManager.stopRecording();
+                Logger::info("Transcribing audio");
                 std::string transcribedText = transcription.transcribe(audioManager.getAudioData());
+                Logger::info("Transcription complete");
                 keyboard.typeText(transcribedText);
             } else {
-                // Start recording
+                Logger::info("Hotkey pressed: START recording");
                 audioManager.startRecording();
             }
             hotkey.resetHotkeyPressed();
@@ -82,14 +96,18 @@ int main() {
 
         // Check for auto-stop due to silence
         if (audioManager.isRecording() && audioManager.checkSilence()) {
+            Logger::info("Silence detected while recording, STOP recording");
             audioManager.stopRecording();
+            Logger::info("Transcribing audio");
             std::string transcribedText = transcription.transcribe(audioManager.getAudioData());
+            Logger::info("Transcription complete");
             keyboard.typeText(transcribedText);
         }
 
         // Sleep to avoid high CPU usage
         Sleep(10);
     }
+    Logger::info("No longer running, doing cleanup");
 
     // Cleanup
     hotkey.unregisterHotkey();
