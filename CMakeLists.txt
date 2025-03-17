@@ -1,85 +1,88 @@
 cmake_minimum_required(VERSION 3.10)
-
-# For Windows using MinGW
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_C_COMPILER /usr/bin/x86_64-w64-mingw32-gcc)
-set(CMAKE_CXX_COMPILER /usr/bin/x86_64-w64-mingw32-g++)
-set(CMAKE_RC_COMPILER /usr/bin/x86_64-w64-mingw32-windres)
-
 project(TurboTalkText)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
-# Configure whisper.cpp
-set(BUILD_SHARED_LIBS OFF)
-set(WHISPER_BUILD_TESTS OFF)
-set(WHISPER_BUILD_EXAMPLES OFF)
-set(WHISPER_BUILD_SERVER OFF)
-set(WHISPER_SDL2 OFF)
-set(WHISPER_CCACHE OFF)
-add_subdirectory(${CMAKE_SOURCE_DIR}/whisper.cpp)
+# Ensure we have SDL_main definition
+add_definitions(-DSDL_MAIN_HANDLED)
 
-# ImGui sources
-set(IMGUI_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/imgui/imgui.cpp
-    ${CMAKE_SOURCE_DIR}/src/imgui/imgui_draw.cpp
-    ${CMAKE_SOURCE_DIR}/src/imgui/imgui_widgets.cpp
-    ${CMAKE_SOURCE_DIR}/src/imgui/imgui_tables.cpp
-    ${CMAKE_SOURCE_DIR}/src/imgui/backends/imgui_impl_sdl2.cpp
-    ${CMAKE_SOURCE_DIR}/src/imgui/backends/imgui_impl_sdlrenderer2.cpp
-)
-
-# Executable
-add_executable(TurboTalkText
-    src/main.cpp
+# Define source files
+set(SOURCES
+    src/main_nogui.cpp
     src/logger.cpp
-    src/gui.cpp
-    ${IMGUI_SOURCES}
+    src/settings.cpp
 )
-set_target_properties(TurboTalkText PROPERTIES SUFFIX ".exe")
+
+# Force static library builds for whisper and ggml
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
+set(WHISPER_STATIC ON CACHE BOOL "Build whisper static libraries" FORCE)
+set(GGML_STATIC ON CACHE BOOL "Build ggml static libraries" FORCE)
+
+set(SDL2_DIR ${CMAKE_SOURCE_DIR}/SDL2-mingw/x86_64-w64-mingw32)
+find_library(SDL2_LIBRARY NAMES SDL2 PATHS ${SDL2_DIR}/lib)
+include_directories(${SDL2_DIR}/include)
+
+set(WHISPER_DIR ${CMAKE_SOURCE_DIR}/whisper.cpp)
+set(GGML_OPENMP OFF CACHE BOOL "Disable OpenMP in GGML" FORCE)
+add_subdirectory(${WHISPER_DIR} whisper_build)
 
 # Include directories
-include_directories(
+set(INCLUDES
+    ${WHISPER_DIR}
+    ${WHISPER_DIR}/ggml/include  # Add GGML includes
+    ${WHISPER_DIR}/ggml/src      # Add GGML src folder for generated headers
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/external/spdlog/include
-    ${CMAKE_SOURCE_DIR}/src/imgui
-    ${SDL2_DIR}/x86_64-w64-mingw32/include
-    ${CMAKE_SOURCE_DIR}/whisper.cpp
+    ${SDL2_DIR}/include
+    ${WHISPER_DIR}/examples      # Sometimes helper headers are here
+    ${CMAKE_BINARY_DIR}/whisper_build/ggml/src # For generated headers
 )
 
-# Link libraries
-target_link_libraries(TurboTalkText 
-    ${SDL2_DIR}/x86_64-w64-mingw32/lib/libSDL2.dll.a
-    whisper
+# Add Windows system libraries needed by SDL2
+set(WIN_LIBRARIES
+    setupapi
+    ole32
+    oleaut32
+    imm32
+    version
+    winmm
+    gdi32
+    cfgmgr32
     user32
+    mingw32 # Add mingw32 explicitly
 )
 
-# Copy files to output directory
-add_custom_command(TARGET TurboTalkText POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_SOURCE_DIR}/settings.json"
-        "$<TARGET_FILE_DIR:TurboTalkText>/settings.json"
-    COMMENT "Copying settings.json"
+# Common libraries
+set(LIBRARIES
+    ${SDL2_LIBRARY}
+    whisper
+    ggml
+    ggml-base
+    ggml-cpu
+    ${WIN_LIBRARIES}
 )
-add_custom_command(TARGET TurboTalkText POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${SDL2_DIR}/x86_64-w64-mingw32/bin/SDL2.dll"
-        "$<TARGET_FILE_DIR:TurboTalkText>/SDL2.dll"
-    COMMENT "Copying SDL2.dll"
+
+# Console version
+add_executable(TurboTalkText-console
+    ${SOURCES}
 )
-add_custom_command(TARGET TurboTalkText POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libgcc_s_seh-1.dll"
-        "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libstdc++-6.dll"
-        "/usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll"
-        "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libgomp-1.dll"
-        "$<TARGET_FILE_DIR:TurboTalkText>/"
-    COMMENT "Copying MinGW runtime DLLs"
+
+target_include_directories(TurboTalkText-console PRIVATE
+    ${INCLUDES}
 )
-add_custom_command(TARGET TurboTalkText POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_SOURCE_DIR}/whisper.cpp/models/ggml-base.en.bin"
-        "$<TARGET_FILE_DIR:TurboTalkText>/ggml-base.en.bin"
-    COMMENT "Copying Whisper model"
+
+# Console version uses -mconsole flag to show console
+target_link_libraries(TurboTalkText-console PRIVATE
+    mingw32 # Explicit order matters
+    ${LIBRARIES}
 )
+target_link_options(TurboTalkText-console PRIVATE -mconsole)
+
+# Copy SDL2.dll for the executable
+if(WIN32)
+    add_custom_command(TARGET TurboTalkText-console POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SDL2_DIR}/bin/SDL2.dll"
+        $<TARGET_FILE_DIR:TurboTalkText-console>)
+endif()

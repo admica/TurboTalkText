@@ -14,7 +14,7 @@ A real-time speech-to-text application that transcribes your voice and types it 
 ## Requirements
 
 - Windows operating system
-- SDL3 library
+- SDL2 library
 - Whisper GGML model file (`ggml-base.en.bin`)
 - C++ compiler with C++17 support
 
@@ -86,7 +86,7 @@ Edit `settings.json` to customize:
 
 ## Technical Details
 
-- Audio Processing: SDL3 for real-time audio capture
+- Audio Processing: SDL2 for real-time audio capture
 - Speech Recognition: Whisper.cpp for efficient CPU-based inference
 - Text Output: Windows API for keyboard simulation
 - Configuration: JSON-based settings management

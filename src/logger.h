@@ -1,10 +1,55 @@
-#include "logger.h"
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/sinks/basic_file_sink.h>
-std::shared_ptr<spdlog::logger> g_logger;
-void init_logger() {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("TurboTalkText.log", true);
-    g_logger = std::make_shared<spdlog::logger>("app", spdlog::sinks_init_list{console_sink, file_sink});
-    g_logger->set_level(spdlog::level::debug);
-}
+#ifndef LOGGER_H
+#define LOGGER_H
+
+#include <string>
+#include <iostream>
+#include <cstdio>
+
+class Logger {
+public:
+    enum Level {
+        ERROR,
+        INFO,
+        DEBUG
+    };
+
+    static void init();
+    
+    template<typename... Args>
+    static void info(const char* fmt, const Args&... args) {
+        log(INFO, fmt, args...);
+    }
+    
+    template<typename... Args>
+    static void error(const char* fmt, const Args&... args) {
+        log(ERROR, fmt, args...);
+    }
+
+private:
+    static Level current_level;
+
+    template<typename... Args>
+    static void log(Level level, const char* fmt, const Args&... args) {
+        if (level > current_level) return;
+        
+        // Print level prefix
+        switch (level) {
+            case ERROR: std::cerr << "[ERROR] "; break;
+            case INFO: std::cout << "[INFO] "; break;
+            case DEBUG: std::cout << "[DEBUG] "; break;
+        }
+        
+        // Simple printf-style formatting
+        char buffer[1024];
+        snprintf(buffer, sizeof(buffer), fmt, args...);
+        
+        // Output based on level
+        if (level == ERROR) {
+            std::cerr << buffer << std::endl;
+        } else {
+            std::cout << buffer << std::endl;
+        }
+    }
+};
+
+#endif // LOGGER_H
