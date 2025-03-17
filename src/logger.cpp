@@ -1,8 +1,16 @@
 #include "logger.h"
-
-// Initialize static member
-Logger::Level Logger::current_level = Logger::INFO;
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 void Logger::init() {
-    // Nothing to initialize - using simple cout/cerr logging
+    auto console = spdlog::stdout_color_mt("console");
+    spdlog::set_default_logger(console);
+    spdlog::set_level(spdlog::level::info);
+}
+
+void Logger::info(const std::string& message) {
+    spdlog::info(message);
+}
+
+void Logger::error(const std::string& message) {
+    spdlog::error(message);
 }
