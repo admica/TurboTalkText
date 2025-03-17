@@ -41,6 +41,11 @@
             "jarvis stop listening",
             "jarvis stop continuous",
             "jarvis back to normal"
+        ],
+        "key_press": [
+            "jarvis press",
+            "jarvis push",
+            "jarvis key"
         ]
     }
 }

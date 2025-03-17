@@ -23,6 +23,10 @@ Settings::Settings() {
         "jarvis stop listening", "stop continuous", "exit continuous mode",
         "stop continuous listening", "back to normal"
     };
+    
+    commands.keyPress = {
+        "jarvis press", "jarvis push", "jarvis key"
+    };
 }
 
 bool Settings::load(const std::string& filename) {
@@ -72,6 +76,11 @@ bool Settings::load(const std::string& filename) {
         // Load exit continuous mode commands
         if (json["voice_commands"].contains("exit_continuous_mode")) {
             commands.exitContinuousMode = json["voice_commands"]["exit_continuous_mode"].get<std::vector<std::string>>();
+        }
+        
+        // Load key press commands
+        if (json["voice_commands"].contains("key_press")) {
+            commands.keyPress = json["voice_commands"]["key_press"].get<std::vector<std::string>>();
         }
     }
 

@@ -1,12 +1,13 @@
 # TurboTalkText
 
-A real-time speech-to-text application that transcribes your voice and types it automatically. Perfect for hands-free text input and computer control in any application.
+A real-time speech-to-text application that transcribes your voice and types it automatically. Perfect for hands-free text input and mouse control in any application.
 
 ## Features
 
 - **Real-time Speech Recognition**: Uses OpenAI's Whisper model for accurate speech recognition
 - **Automatic Typing**: Simulates keyboard input to type transcribed text
 - **Voice-Controlled Mouse**: Control mouse movement and clicks with voice commands
+- **Keyboard Shortcuts**: Trigger keyboard shortcuts and key presses with voice commands
 - **Precise Mouse Control**: Specify exact pixel distances (e.g., "right 250")
 - **Continuous Listening Mode**: Transcribe speech continuously without needing to toggle recording
 - **Dual-Mode Operation**: Switch between text input and mouse control seamlessly
@@ -63,6 +64,12 @@ The bash script handles all downloading of dependencies automatically.
 - Precise movement: "right 120", "up 50", "left 200", etc.
 - Mouse actions: "click", "right click", "double click"
 - Speed adjustment: "faster", "slower"
+
+#### Keyboard Shortcuts
+- Press a single key: **"Jarvis press enter"**, **"Jarvis push space"**
+- Press key combinations: **"Jarvis press control alt delete"**, **"Jarvis push control c"**
+- Function keys: **"Jarvis press f5"**, **"Jarvis push control f4"**
+- Special keys: **"Jarvis press escape"**, **"Jarvis push tab"**
 
 ### Operating Modes
 

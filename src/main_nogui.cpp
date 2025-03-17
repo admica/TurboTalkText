@@ -21,6 +21,11 @@ enum InputMode {
     MOUSE_MODE
 };
 
+// Voice command state tracking
+struct VoiceCommands {
+    bool isWakeWordDetected = false;
+};
+
 // Helper function to normalize text for command matching (static to limit scope to this file)
 static std::string normalizeText(const std::string& input) {
     // Convert to lowercase
@@ -163,6 +168,62 @@ static std::string mergeContinuousText(const std::string& previousText, const st
     }
 }
 
+// Check if text contains the wake word
+static bool containsWakeWord(const std::string& text, const Settings& settings) {
+    // Simple implementation: check if text starts with "jarvis"
+    return text.find("jarvis") != std::string::npos;
+}
+
+bool processText(const std::string& text, VoiceCommands& voiceCommands, Mouse& mouse, Keyboard& keyboard, Settings& settings) {
+    Logger::info("Processing text: " + text);
+
+    std::string lowerText = text;
+    std::transform(lowerText.begin(), lowerText.end(), lowerText.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+
+    // Check if this is a wake word activation
+    if (!voiceCommands.isWakeWordDetected) {
+        if (containsWakeWord(lowerText, settings)) {
+            voiceCommands.isWakeWordDetected = true;
+            std::cout << "Wake word detected! Ready for commands..." << std::endl;
+            return true;
+        }
+        return false;
+    }
+
+    // Check for key press commands
+    if (containsAnyCommand(lowerText, settings.commands.keyPress) ||
+        lowerText.find("push ") != std::string::npos || 
+        lowerText.find("press ") != std::string::npos || 
+        lowerText.find("key ") != std::string::npos) {
+        
+        if (keyboard.processKeyCommand(lowerText)) {
+            Logger::info("Executed key press command: " + text);
+            return true;
+        }
+    }
+
+    // Process other commands based on the current mode
+    std::string normalizedText = normalizeText(lowerText);
+    
+    // Prepare references to command lists from settings
+    const std::vector<std::string>& MOUSE_MODE_COMMANDS = settings.commands.mouseMode;
+    const std::vector<std::string>& TEXT_MODE_COMMANDS = settings.commands.textMode;
+    const std::vector<std::string>& CONTINUOUS_MODE_COMMANDS = settings.commands.continuousMode;
+    const std::vector<std::string>& EXIT_CONTINUOUS_MODE_COMMANDS = settings.commands.exitContinuousMode;
+    
+    // Check for exit command
+    if (normalizedText.find("exit") != std::string::npos || 
+        normalizedText.find("quit") != std::string::npos ||
+        normalizedText.find("stop listening") != std::string::npos) {
+        voiceCommands.isWakeWordDetected = false;
+        std::cout << "Voice commands deactivated. Say the wake word again to reactivate." << std::endl;
+        return true;
+    }
+    
+    return false; // If we get here, no command was recognized
+}
+
 int main() {
     // Initialize logger
     Logger::init();
@@ -230,6 +291,9 @@ int main() {
     // Current input mode and continuous mode status
     InputMode currentInputMode = TEXT_MODE;
     bool continuousModeActive = false;
+    
+    // Voice commands state tracking
+    VoiceCommands voiceCommands;
     
     // Buffer for continuous mode
     std::string continuousTextBuffer;
@@ -303,10 +367,17 @@ int main() {
                     
                     Logger::info("Transcription complete: \"" + transcribedText + "\"");
                     
+                    // First check for key press commands
+                    if (processText(transcribedText, voiceCommands, mouse, keyboard, settings)) {
+                        // Command was processed, continue to the next loop iteration
+                        hotkey.resetHotkeyPressed();
+                        continue;
+                    }
+                    
                     // Process the transcribed text based on current mode
                     std::string normalizedText = normalizeText(transcribedText);
                     
-                    // Check for mode switch commands first
+                    // Check for mode switch commands
                     if (containsAnyCommand(normalizedText, CONTINUOUS_MODE_COMMANDS)) {
                         // Enable continuous mode
                         continuousModeActive = true;
@@ -315,7 +386,6 @@ int main() {
                         continuousTextBuffer.clear();
                         Logger::info("Enabled CONTINUOUS MODE (current input: " + 
                                     std::string(currentInputMode == TEXT_MODE ? "TEXT" : "MOUSE") + ")");
-                        continue;
                     } else if (containsAnyCommand(normalizedText, MOUSE_MODE_COMMANDS)) {
                         // Switch to mouse mode
                         currentInputMode = MOUSE_MODE;
@@ -356,10 +426,16 @@ int main() {
             
             Logger::info("Transcription complete: \"" + transcribedText + "\"");
             
+            // First check for key press commands
+            if (processText(transcribedText, voiceCommands, mouse, keyboard, settings)) {
+                // Command was processed, continue to the next loop iteration
+                continue;
+            }
+            
             // Process the transcribed text based on current mode
             std::string normalizedText = normalizeText(transcribedText);
             
-            // Check for mode switch commands first
+            // Check for mode switch commands
             if (containsAnyCommand(normalizedText, CONTINUOUS_MODE_COMMANDS)) {
                 // Enable continuous mode
                 continuousModeActive = true;
@@ -405,6 +481,12 @@ int main() {
                         transcribedChunk = cleanTranscription(transcribedChunk);
                         
                         Logger::info("Continuous chunk transcribed: \"" + transcribedChunk + "\"");
+                        
+                        // First check for key press commands
+                        if (processText(transcribedChunk, voiceCommands, mouse, keyboard, settings)) {
+                            // Command was processed, continue to the next loop iteration
+                            continue;
+                        }
                         
                         // Check for commands
                         std::string normalizedChunk = normalizeText(transcribedChunk);

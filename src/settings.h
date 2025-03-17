@@ -34,6 +34,7 @@ public:
         std::vector<std::string> textMode;
         std::vector<std::string> continuousMode;
         std::vector<std::string> exitContinuousMode;
+        std::vector<std::string> keyPress;
     };
     VoiceCommands commands;
 
