@@ -34,6 +34,9 @@
 # Downloaded tarballs
 *.tar.gz
 
+# Externals
+external
+
 # Extracted whisper.cpp directories
 whisper.cpp
 
