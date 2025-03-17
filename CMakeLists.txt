@@ -51,14 +51,20 @@ set(LIBRARIES
 )
 
 # Executable
-add_executable(TurboTalkText-console ${SOURCES})
-target_link_libraries(TurboTalkText-console PRIVATE mingw32 ${LIBRARIES})
-target_link_options(TurboTalkText-console PRIVATE -mconsole)
+add_executable(TurboTalkText ${SOURCES})
+target_link_libraries(TurboTalkText PRIVATE mingw32 ${LIBRARIES})
+target_link_options(TurboTalkText PRIVATE -mconsole)
 
 # Copy SDL2.dll
 if(WIN32)
-    add_custom_command(TARGET TurboTalkText-console POST_BUILD
+    add_custom_command(TARGET TurboTalkText POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${SDL2_DIR}/bin/SDL2.dll"
-        $<TARGET_FILE_DIR:TurboTalkText-console>)
+        $<TARGET_FILE_DIR:TurboTalkText>)
 endif()
+
+# Copy settings.json to build directory
+add_custom_command(TARGET TurboTalkText POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/settings.json"
+    $<TARGET_FILE_DIR:TurboTalkText>)

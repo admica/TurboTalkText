@@ -32,8 +32,7 @@ WHISPER_DIR="$PROJECT_DIR/whisper.cpp"
 SPDLOG_DIR="$PROJECT_DIR/external/spdlog"
 NLOHMANN_DIR="$PROJECT_DIR/include/nlohmann"
 MODEL_FILE="$WHISPER_DIR/models/ggml-base.en.bin"
-GUI_EXE_FILE="$BUILD_DIR/TurboTalkText.exe"
-CONSOLE_EXE_FILE="$BUILD_DIR/TurboTalkText-console.exe"
+CONSOLE_EXE_FILE="$BUILD_DIR/TurboTalkText.exe"
 DLL_FILE="$SDL2_DIR/x86_64-w64-mingw32/bin/SDL2.dll"
 
 # Output directory
@@ -160,35 +159,9 @@ if [ -f "$CONSOLE_EXE_FILE" ] && [ -f "$DLL_FILE" ] && [ -f "$MODEL_FILE" ]; the
     # Copy the executables, settings, and required files
     sudo cp "$CONSOLE_EXE_FILE" "$DLL_FILE" "$MODEL_FILE" "$APP_DIR"
     
-    # Copy settings.json if it exists, otherwise create a default one
-    if [ -f "settings.json" ]; then
-        sudo cp "settings.json" "$APP_DIR"
-        print_detail "Copied settings.json to $APP_DIR"
-    else
-        print_detail "Creating default settings.json in $APP_DIR"
-        cat > "$APP_DIR/settings.json" << 'EOF'
-{
-    "audio": {
-        "device": "default",
-        "sample_rate": 16000,
-        "silence_threshold": 0.001000,
-        "silence_duration_ms": 1000
-    },
-    "whisper": {
-        "model_path": "ggml-base.en.bin",
-        "language": "en",
-        "translate": false,
-        "beam_size": 10,
-        "threads": 4
-    },
-    "output": {
-        "type": "keyboard",
-        "add_punctuation": true,
-        "capitalize_sentences": true
-    }
-}
-EOF
-    fi
+    # Copy settings.json from project root, not build directory
+    sudo cp "$PROJECT_DIR/settings.json" "$APP_DIR"
+    print_detail "Copied settings.json from project root to $APP_DIR"
     
     print_detail "Copied console executable, SDL2.dll, and Whisper model to $APP_DIR"
     

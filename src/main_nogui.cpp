@@ -14,9 +14,26 @@ int main() {
 
     // Load settings
     Settings settings;
+    // Try to load settings.json from current directory first
     if (!settings.load("settings.json")) {
-        Logger::error("Failed to load settings.json");
-        return 1;
+        // If that fails, try to load from executable directory
+        char exePath[MAX_PATH];
+        GetModuleFileNameA(NULL, exePath, MAX_PATH);
+        std::string exeDir = exePath;
+        size_t lastSlash = exeDir.find_last_of("\\/");
+        if (lastSlash != std::string::npos) {
+            exeDir = exeDir.substr(0, lastSlash + 1);
+            if (!settings.load(exeDir + "settings.json")) {
+                Logger::error("Failed to load settings.json from current directory or executable directory");
+                return 1;
+            }
+            Logger::info("Loaded settings.json from executable directory");
+        } else {
+            Logger::error("Failed to load settings.json");
+            return 1;
+        }
+    } else {
+        Logger::info("Loaded settings.json from current directory");
     }
 
     // Initialize SDL2 for audio
