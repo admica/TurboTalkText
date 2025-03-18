@@ -5,6 +5,13 @@
         "silence_threshold": 0.009,
         "silence_duration_ms": 2500
     },
+    "speech_detection": {
+        "threshold": 0.02,
+        "min_silence_ms": 1000,
+        "max_chunk_sec": 15,
+        "pre_speech_buffer_ms": 500,
+        "enabled": true
+    },
     "whisper": {
         "model_path": "ggml-base.en.bin",
         "language": "en",
@@ -16,6 +23,13 @@
         "type": "keyboard",
         "add_punctuation": true,
         "capitalize_sentences": true
+    },
+    "ui": {
+        "enabled": true,
+        "style": "circle",
+        "size": 200,
+        "opacity": 0.8,
+        "minimize_when_inactive": true
     },
     "voice_commands": {
         "mouse_mode": [

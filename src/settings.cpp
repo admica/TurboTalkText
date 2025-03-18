@@ -27,6 +27,20 @@ Settings::Settings() {
     commands.keyPress = {
         "jarvis press", "jarvis push", "jarvis key"
     };
+    
+    // Default speech detection settings
+    speechDetection.threshold = 0.02f;
+    speechDetection.minSilenceMs = 1000;
+    speechDetection.maxChunkSec = 15;
+    speechDetection.preSpeechBufferMs = 500;
+    speechDetection.enabled = true;
+    
+    // Default UI settings
+    ui.enabled = true;
+    ui.style = "circle";
+    ui.size = 200;
+    ui.opacity = 0.8f;
+    ui.minimizeWhenInactive = true;
 }
 
 bool Settings::load(const std::string& filename) {
@@ -43,6 +57,29 @@ bool Settings::load(const std::string& filename) {
     sampleRate = json["audio"]["sample_rate"].get<int>();
     silenceThreshold = json["audio"]["silence_threshold"].get<float>();
     silenceDurationMs = json["audio"]["silence_duration_ms"].get<int>();
+    
+    // Load speech detection settings if they exist
+    if (json.contains("speech_detection")) {
+        if (json["speech_detection"].contains("threshold")) {
+            speechDetection.threshold = json["speech_detection"]["threshold"].get<float>();
+        }
+        
+        if (json["speech_detection"].contains("min_silence_ms")) {
+            speechDetection.minSilenceMs = json["speech_detection"]["min_silence_ms"].get<int>();
+        }
+        
+        if (json["speech_detection"].contains("max_chunk_sec")) {
+            speechDetection.maxChunkSec = json["speech_detection"]["max_chunk_sec"].get<int>();
+        }
+        
+        if (json["speech_detection"].contains("pre_speech_buffer_ms")) {
+            speechDetection.preSpeechBufferMs = json["speech_detection"]["pre_speech_buffer_ms"].get<int>();
+        }
+        
+        if (json["speech_detection"].contains("enabled")) {
+            speechDetection.enabled = json["speech_detection"]["enabled"].get<bool>();
+        }
+    }
 
     // Load whisper settings
     modelPath = json["whisper"]["model_path"].get<std::string>();
@@ -55,6 +92,29 @@ bool Settings::load(const std::string& filename) {
     outputType = json["output"]["type"].get<std::string>();
     addPunctuation = json["output"]["add_punctuation"].get<bool>();
     capitalizeSentences = json["output"]["capitalize_sentences"].get<bool>();
+    
+    // Load UI settings if they exist
+    if (json.contains("ui")) {
+        if (json["ui"].contains("enabled")) {
+            ui.enabled = json["ui"]["enabled"].get<bool>();
+        }
+        
+        if (json["ui"].contains("style")) {
+            ui.style = json["ui"]["style"].get<std::string>();
+        }
+        
+        if (json["ui"].contains("size")) {
+            ui.size = json["ui"]["size"].get<int>();
+        }
+        
+        if (json["ui"].contains("opacity")) {
+            ui.opacity = json["ui"]["opacity"].get<float>();
+        }
+        
+        if (json["ui"].contains("minimize_when_inactive")) {
+            ui.minimizeWhenInactive = json["ui"]["minimize_when_inactive"].get<bool>();
+        }
+    }
 
     // Load voice commands if they exist in the JSON
     if (json.contains("voice_commands")) {

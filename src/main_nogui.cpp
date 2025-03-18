@@ -6,6 +6,10 @@
 #include "mouse.h"
 #include "hotkey.h"
 
+#ifdef USE_OVERLAY_UI
+#include "overlay_ui.h"
+#endif
+
 #include <windows.h>
 #include <iostream>
 #include <algorithm>
@@ -53,14 +57,14 @@ static bool containsAnyCommand(const std::string& text, const std::vector<std::s
 
 // Helper function to clean up transcription text
 static std::string cleanTranscription(const std::string& text) {
-    // Remove [BLANK_AUDIO] markers
+    // Remove [BLANK_AUDIO] markers and other noise indicators
     std::string result = text;
     
-    // Define a regex pattern to match [BLANK_AUDIO] markers with optional whitespace
-    std::regex blankAudioPattern("\\s*\\[BLANK_AUDIO\\]\\s*");
+    // Define regex patterns for various noise indicators
+    std::regex noisePattern("\\s*\\[(BLANK_AUDIO|silence|keyboard|background|noise|typing|clicking|inaudible|music|sound|sounds).*?\\]\\s*");
     
     // Replace matches with a space
-    result = std::regex_replace(result, blankAudioPattern, " ");
+    result = std::regex_replace(result, noisePattern, " ");
     
     // Trim extra whitespace
     result = std::regex_replace(result, std::regex("\\s+"), " ");
@@ -288,9 +292,24 @@ int main() {
         return 1;
     }
 
+#ifdef USE_OVERLAY_UI
+    // Initialize overlay UI if enabled in settings
+    OverlayUI& overlayUI = OverlayUI::getInstance();
+    if (settings.ui.enabled) {
+        Logger::info("Initializing overlay UI");
+        if (!overlayUI.initialize(GetModuleHandle(NULL), settings)) {
+            Logger::error("Failed to initialize overlay UI");
+            // Continue without UI
+        }
+    }
+#endif
+
     // Current input mode and continuous mode status
     InputMode currentInputMode = TEXT_MODE;
     bool continuousModeActive = false;
+    
+    // Track speech detection state for UI and logging
+    SpeechState previousSpeechState = SpeechState::SILENCE;
     
     // Voice commands state tracking
     VoiceCommands voiceCommands;
@@ -322,6 +341,16 @@ int main() {
         Logger::info("Say '" + EXIT_CONTINUOUS_MODE_COMMANDS[0] + "' to exit continuous listening mode");
     }
     Logger::info("In mouse mode, say 'up', 'down', 'left', 'right', 'click', etc.");
+    
+    // Log speech detection status
+    if (settings.speechDetection.enabled) {
+        Logger::info("Speech-aware chunking enabled for continuous mode");
+        Logger::info("Speech threshold: " + std::to_string(settings.speechDetection.threshold));
+        Logger::info("Min silence duration: " + std::to_string(settings.speechDetection.minSilenceMs) + "ms");
+        Logger::info("Max chunk duration: " + std::to_string(settings.speechDetection.maxChunkSec) + "s");
+    } else {
+        Logger::info("Using fixed-size chunking for continuous mode");
+    }
 
     // Main loop
     bool running = true;
@@ -335,6 +364,35 @@ int main() {
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+
+        // Get audio level for UI
+        float audioLevel = 0.0f;
+        if (audioManager.isRecording()) {
+            audioLevel = audioManager.getCurrentAudioLevel();
+        }
+
+#ifdef USE_OVERLAY_UI
+        // Update overlay UI if enabled
+        if (settings.ui.enabled) {
+            overlayUI.update(audioManager.isRecording(), continuousModeActive, 
+                            currentInputMode == MOUSE_MODE, audioLevel);
+        }
+#endif
+
+        // Track speech state changes for logging
+        if (continuousModeActive && settings.speechDetection.enabled) {
+            SpeechState currentSpeechState = audioManager.getSpeechState();
+            
+            // Log state transitions for debugging
+            if (currentSpeechState != previousSpeechState) {
+                if (currentSpeechState == SpeechState::SPEAKING) {
+                    Logger::info("Speech detection: Started speaking");
+                } else if (currentSpeechState == SpeechState::SILENCE && previousSpeechState == SpeechState::SPEAKING) {
+                    Logger::info("Speech detection: Stopped speaking");
+                }
+                previousSpeechState = currentSpeechState;
+            }
         }
 
         // Check for exit hotkey press
@@ -549,7 +607,14 @@ int main() {
 
     // Cleanup
     hotkey.unregisterHotkey();
-    SDL_Quit();
 
+#ifdef USE_OVERLAY_UI
+    // Shutdown overlay UI
+    if (settings.ui.enabled) {
+        overlayUI.shutdown();
+    }
+#endif
+
+    SDL_Quit();
     return 0;
 }

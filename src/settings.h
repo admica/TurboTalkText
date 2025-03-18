@@ -15,6 +15,16 @@ public:
     int sampleRate;
     float silenceThreshold;
     int silenceDurationMs;
+    
+    // Speech detection settings (for improved continuous mode)
+    struct SpeechDetectionSettings {
+        float threshold;
+        int minSilenceMs;
+        int maxChunkSec;
+        int preSpeechBufferMs;
+        bool enabled;
+    };
+    SpeechDetectionSettings speechDetection;
 
     // Whisper settings
     std::string modelPath;
@@ -27,6 +37,16 @@ public:
     std::string outputType;
     bool addPunctuation;
     bool capitalizeSentences;
+    
+    // UI settings
+    struct UISettings {
+        bool enabled;
+        std::string style;
+        int size;
+        float opacity;
+        bool minimizeWhenInactive;
+    };
+    UISettings ui;
     
     // Voice command settings
     struct VoiceCommands {

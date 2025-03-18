@@ -11,7 +11,6 @@ GREEN="\033[32m"
 WHITE="\033[97m"
 RESET="\033[0m"
 
-# Print functions
 print_header() { echo -e "${GREEN}[ $1 ]${RESET}"; }
 print_detail() { echo -e "${CYAN}$1${RESET}"; }
 print_debug() { echo -e "${YELLOW}$1${RESET}"; }
@@ -35,17 +34,11 @@ MODEL_FILE="$WHISPER_DIR/models/ggml-base.en.bin"
 CONSOLE_EXE_FILE="$BUILD_DIR/TurboTalkText.exe"
 DLL_FILE="$SDL2_DIR/x86_64-w64-mingw32/bin/SDL2.dll"
 
-# Output directory
-if [[ -n "$1" ]]; then
-    OUTPUT_DIR="$1"
-    [ ! -d "$OUTPUT_DIR" ] && print_error "Output directory $OUTPUT_DIR does not exist!"
-else
-    FIRST_USER=$(ls /mnt/c/Users/ | awk '{print $1}' | head -n1)
-    [ -z "$FIRST_USER" ] && print_error "No users found in /mnt/c/Users/!"
-    OUTPUT_DIR="/mnt/c/Users/$FIRST_USER/Downloads/TurboTalkText"
-    # Create output directory if it doesn't exist
-    mkdir -p "$OUTPUT_DIR"
-fi
+FIRST_USER=$(ls /mnt/c/Users/ | awk '{print $1}' | head -n1)
+[ -z "$FIRST_USER" ] && print_error "No users found in /mnt/c/Users/!"
+OUTPUT_DIR="/mnt/c/Users/$FIRST_USER/Downloads/TurboTalkText"
+# Create output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR"
 
 print_debug "Starting TurboTalkText build process"
 print_debug "SDL2 version: $SDL2_VER"

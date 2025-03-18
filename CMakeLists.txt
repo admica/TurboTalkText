@@ -5,6 +5,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_SYSTEM_NAME Windows)
 add_definitions(-DSDL_MAIN_HANDLED)
 
+# UI Options
+option(USE_OVERLAY_UI "Enable the overlay UI" ON)
+
+# Add Windows-specific definitions
+if(WIN32)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    add_definitions(-D_WIN32_WINNT=0x0601) # Windows 7 or later
+    add_definitions(-DNOMINMAX) # Don't define min/max macros
+    add_definitions(-DWINVER=0x0601) # Windows 7 or later
+endif()
+
 # Source files
 set(SOURCES
     src/main_nogui.cpp
@@ -16,6 +27,14 @@ set(SOURCES
     src/logger.cpp
     src/mouse.cpp
 )
+
+# Add UI sources if enabled
+if(USE_OVERLAY_UI)
+    list(APPEND SOURCES
+        src/overlay_ui.cpp
+    )
+    add_definitions(-DUSE_OVERLAY_UI)
+endif()
 
 # Static linking
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
@@ -50,6 +69,11 @@ set(LIBRARIES
     ggml
     setupapi ole32 oleaut32 imm32 version winmm gdi32 cfgmgr32 user32 mingw32
 )
+
+# Add GDI+ if overlay UI is enabled
+if(USE_OVERLAY_UI)
+    list(APPEND LIBRARIES gdiplus)
+endif()
 
 # Executable
 add_executable(TurboTalkText ${SOURCES})
