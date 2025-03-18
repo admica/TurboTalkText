@@ -13,15 +13,34 @@ AudioManager::AudioManager(Settings& settings)
       sampleRate(settings.sampleRate),
       silenceCounter(0),
       silenceChunks(settings.silenceDurationMs * settings.sampleRate / (1000 * 1024)), // Convert ms to buffer chunks
-      // Speech detection initialization
+      // Speech detection initialization with safe defaults
       currentSpeechState(SpeechState::SILENCE),
-      speechThreshold(settings.speechDetection.threshold),
-      minSilenceFrames(settings.speechDetection.minSilenceMs * settings.sampleRate / (1000 * 1024)),
+      speechThreshold(0.02f), // Safe default
+      minSilenceFrames(settings.sampleRate / (1024) * 1000 / 1000), // ~1 second
       minSpeechFrames(settings.sampleRate / 50), // About 20ms of speech
-      maxSpeechFrames(settings.speechDetection.maxChunkSec * settings.sampleRate),
-      preSpeechBufferSize(settings.speechDetection.preSpeechBufferMs * settings.sampleRate / 1000),
-      speechDetectionEnabled(settings.speechDetection.enabled),
+      maxSpeechFrames(settings.sampleRate * 15), // 15 seconds max
+      preSpeechBufferSize(settings.sampleRate / 2), // 0.5 seconds
+      speechDetectionEnabled(true),
       currentAudioLevel(0.0f) {
+    
+    // Override defaults with settings values if available
+    if (settings.speechDetection.threshold > 0) {
+        speechThreshold = settings.speechDetection.threshold;
+    }
+    
+    if (settings.speechDetection.minSilenceMs > 0) {
+        minSilenceFrames = settings.speechDetection.minSilenceMs * settings.sampleRate / (1000 * 1024);
+    }
+    
+    if (settings.speechDetection.maxChunkSec > 0) {
+        maxSpeechFrames = settings.speechDetection.maxChunkSec * settings.sampleRate;
+    }
+    
+    if (settings.speechDetection.preSpeechBufferMs > 0) {
+        preSpeechBufferSize = settings.speechDetection.preSpeechBufferMs * settings.sampleRate / 1000;
+    }
+    
+    speechDetectionEnabled = settings.speechDetection.enabled;
     
     // Initialize desired audio spec
     SDL_zero(desiredSpec);

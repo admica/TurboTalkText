@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "logger.h"
 #include <fstream>
 #include <iostream>
 
@@ -79,6 +80,12 @@ bool Settings::load(const std::string& filename) {
         if (json["speech_detection"].contains("enabled")) {
             speechDetection.enabled = json["speech_detection"]["enabled"].get<bool>();
         }
+    } else {
+        // If speech detection settings don't exist, log it and keep using defaults
+        Logger::info("Speech detection settings not found in config, using defaults");
+        Logger::info("Default speech threshold: " + std::to_string(speechDetection.threshold));
+        Logger::info("Default min silence: " + std::to_string(speechDetection.minSilenceMs) + "ms");
+        Logger::info("Default max chunk: " + std::to_string(speechDetection.maxChunkSec) + "s");
     }
 
     // Load whisper settings
