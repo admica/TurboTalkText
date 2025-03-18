@@ -16,6 +16,7 @@
         "model_path": "ggml-base.en.bin",
         "language": "en",
         "translate": false,
+        "beam_size": 5,
         "threads": 4
     },
     "output": {
@@ -34,7 +35,8 @@
         "mouse_mode": [
             "jarvis move the mouse",
             "jarvis mouse mode",
-            "jarvis switch to mouse mode"
+            "jarvis switch to mouse mode",
+            "jarvis go to mouse mode"
         ],
         "text_mode": [
             "jarvis stop",
@@ -42,20 +44,28 @@
             "jarvis back to text",
             "jarvis text mode",
             "jarvis typing mode",
-            "jarvis keyboard mode"
+            "jarvis keyboard mode",
+            "jarvis go to text mode",
+            "jarvis go to typing mode",
+            "jarvis go to keyboard mode"
         ],
         "continuous_mode": [
             "jarvis listen continuously",
             "jarvis continuous mode",
             "jarvis always listen",
-            "jarvis listening mode"
+            "jarvis listening mode",
+            "jarvis go to listening mode"
         ],
         "exit_continuous_mode": [
             "jarvis stop listening",
             "jarvis stop continuous",
             "jarvis back to normal",
             "jarvis stop listening",
-            "jarvis stop continuous"
+            "jarvis stop continuous",
+            "jarvis go to normal mode",
+            "jarvis go to text mode",
+            "jarvis go to typing mode",
+            "jarvis go to keyboard mode"
         ],
         "key_press": [
             "jarvis press",

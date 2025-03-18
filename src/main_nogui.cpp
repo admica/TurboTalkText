@@ -27,7 +27,8 @@ enum InputMode {
 
 // Voice command state tracking
 struct VoiceCommands {
-    bool isWakeWordDetected = false;
+    // No need for wake word state tracking anymore
+    // We directly check for the wake word in each command
 };
 
 // Helper function to normalize text for command matching (static to limit scope to this file)
@@ -185,15 +186,13 @@ bool processText(const std::string& text, VoiceCommands& voiceCommands, Mouse& m
     std::transform(lowerText.begin(), lowerText.end(), lowerText.begin(),
         [](unsigned char c) { return std::tolower(c); });
 
-    // Check if this is a wake word activation
-    if (!voiceCommands.isWakeWordDetected) {
-        if (containsWakeWord(lowerText, settings)) {
-            voiceCommands.isWakeWordDetected = true;
-            std::cout << "Wake word detected! Ready for commands..." << std::endl;
-            return true;
-        }
+    // Check if this contains the wake word
+    if (!containsWakeWord(lowerText, settings)) {
+        // No wake word, so don't process as a command
         return false;
     }
+    
+    Logger::info("Wake word detected in: '" + text + "', processing command...");
 
     // Check for key press commands
     if (containsAnyCommand(lowerText, settings.commands.keyPress) ||
@@ -220,12 +219,13 @@ bool processText(const std::string& text, VoiceCommands& voiceCommands, Mouse& m
     if (normalizedText.find("exit") != std::string::npos || 
         normalizedText.find("quit") != std::string::npos ||
         normalizedText.find("stop listening") != std::string::npos) {
-        voiceCommands.isWakeWordDetected = false;
-        std::cout << "Voice commands deactivated. Say the wake word again to reactivate." << std::endl;
+        std::cout << "Exit command recognized." << std::endl;
         return true;
     }
     
-    return false; // If we get here, no command was recognized
+    // Important: Return false to let the main loop check for mode switch commands
+    // This is critical for commands like "jarvis continuous mode" to work
+    return false;
 }
 
 int main() {
@@ -426,13 +426,15 @@ int main() {
                     Logger::info("Transcription complete: \"" + transcribedText + "\"");
                     
                     // First check for key press commands
-                    if (processText(transcribedText, voiceCommands, mouse, keyboard, settings)) {
+                    bool isCommand = processText(transcribedText, voiceCommands, mouse, keyboard, settings);
+                    if (isCommand) {
                         // Command was processed, continue to the next loop iteration
                         hotkey.resetHotkeyPressed();
                         continue;
                     }
                     
-                    // Process the transcribed text based on current mode
+                    // If processText returns false, it might still be a wake word command
+                    // that needs to be processed for mode switching
                     std::string normalizedText = normalizeText(transcribedText);
                     
                     // Check for mode switch commands
@@ -485,12 +487,14 @@ int main() {
             Logger::info("Transcription complete: \"" + transcribedText + "\"");
             
             // First check for key press commands
-            if (processText(transcribedText, voiceCommands, mouse, keyboard, settings)) {
+            bool isCommand = processText(transcribedText, voiceCommands, mouse, keyboard, settings);
+            if (isCommand) {
                 // Command was processed, continue to the next loop iteration
                 continue;
             }
             
-            // Process the transcribed text based on current mode
+            // If processText returns false, it might still be a wake word command
+            // that needs to be processed for mode switching
             std::string normalizedText = normalizeText(transcribedText);
             
             // Check for mode switch commands
@@ -541,12 +545,14 @@ int main() {
                         Logger::info("Continuous chunk transcribed: \"" + transcribedChunk + "\"");
                         
                         // First check for key press commands
-                        if (processText(transcribedChunk, voiceCommands, mouse, keyboard, settings)) {
+                        bool isCommand = processText(transcribedChunk, voiceCommands, mouse, keyboard, settings);
+                        if (isCommand) {
                             // Command was processed, continue to the next loop iteration
                             continue;
                         }
                         
-                        // Check for commands
+                        // If processText returns false, it might still be a wake word command
+                        // that needs to be processed for mode switching
                         std::string normalizedChunk = normalizeText(transcribedChunk);
                         
                         // Check for exit continuous mode command
